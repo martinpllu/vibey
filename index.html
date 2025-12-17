@@ -505,7 +505,7 @@
         </div>
       </div>
       <div class="chat-input-area">
-        <textarea id="chat-input" placeholder="Describe your app..." rows="1"></textarea>
+        <textarea id="chat-input" placeholder="What do you want to build?" rows="1"></textarea>
         <button class="send-btn" id="send-btn">Send</button>
       </div>
     </div>
@@ -529,6 +529,12 @@
           <label for="model-select">Model</label>
           <select id="model-select"></select>
         </div>
+        <div class="form-group" id="online-toggle-group" style="display: none;">
+          <label class="toggle-label">
+            <input type="checkbox" id="online-toggle">
+            <span>Online (web search)</span>
+          </label>
+        </div>
         <div class="form-group">
           <label class="toggle-label">
             <input type="checkbox" id="show-cost-toggle" checked>
@@ -536,9 +542,7 @@
           </label>
         </div>
         <div class="form-group">
-          <label>Current Code</label>
-          <p class="form-hint">The generated HTML is stored locally and will persist across sessions.</p>
-          <button id="clear-code-btn" style="margin-top: 8px; padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Code & Start Fresh</button>
+          <button id="clear-code-btn" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Code & Chat</button>
         </div>
       </div>
     </div>
@@ -563,18 +567,18 @@
     // Model options per provider
     const MODELS = {
       anthropic: [
-        { value: 'claude-opus-4-5-20251101', label: 'Claude Opus 4.5' },
-        { value: 'claude-sonnet-4-20250514', label: 'Claude Sonnet 4' },
-        { value: 'claude-3-5-sonnet-20241022', label: 'Claude 3.5 Sonnet' }
+        'claude-opus-4-5-20251101',
+        'claude-sonnet-4-20250514',
+        'claude-3-5-sonnet-20241022'
       ],
       openrouter: [
-        { value: 'anthropic/claude-opus-4.5', label: 'Claude Opus 4.5' },
-        { value: 'anthropic/claude-sonnet-4', label: 'Claude Sonnet 4' },
-        { value: 'anthropic/claude-3.5-sonnet', label: 'Claude 3.5 Sonnet' },
-        { value: 'openai/gpt-4o', label: 'GPT-4o' },
-        { value: 'openai/gpt-4o-mini', label: 'GPT-4o Mini' },
-        { value: 'google/gemini-2.0-flash-001', label: 'Gemini 2.0 Flash' },
-        { value: 'google/gemini-3-flash-preview', label: 'Gemini 3 Flash (Preview)' }
+        'anthropic/claude-opus-4.5',
+        'anthropic/claude-sonnet-4',
+        'anthropic/claude-3.5-sonnet',
+        'openai/gpt-4o',
+        'openai/gpt-4o-mini',
+        'google/gemini-2.0-flash-001',
+        'google/gemini-3-flash-preview'
       ]
     };
 
@@ -610,6 +614,8 @@ The user will describe what they want, and you'll generate the complete HTML for
     const previewFrame = document.getElementById('preview-frame');
     const clearCodeBtn = document.getElementById('clear-code-btn');
     const showCostToggle = document.getElementById('show-cost-toggle');
+    const onlineToggle = document.getElementById('online-toggle');
+    const onlineToggleGroup = document.getElementById('online-toggle-group');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
     const appNameInput = document.getElementById('app-name-input');
@@ -626,24 +632,26 @@ The user will describe what they want, and you'll generate the complete HTML for
         apiKeyInput.placeholder = 'sk-ant-...';
         apiKeyHint.innerHTML = 'Get your key at <a href="https://console.anthropic.com/settings/keys" target="_blank">console.anthropic.com</a>';
         apiKeyInput.value = localStorage.getItem(STORAGE_KEYS.anthropicApiKey) || '';
+        onlineToggleGroup.style.display = 'none';
       } else {
         apiKeyLabel.textContent = 'OpenRouter API Key';
         apiKeyInput.placeholder = 'sk-or-...';
         apiKeyHint.innerHTML = 'Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a>';
         apiKeyInput.value = localStorage.getItem(STORAGE_KEYS.openrouterApiKey) || '';
+        onlineToggleGroup.style.display = 'block';
       }
 
       // Update model options
       const models = MODELS[provider];
       const savedModel = localStorage.getItem(`vibey_model_${provider}`);
       modelSelect.innerHTML = models.map(m =>
-        `<option value="${m.value}">${m.label}</option>`
+        `<option value="${m}">${m}</option>`
       ).join('');
 
-      if (savedModel && models.some(m => m.value === savedModel)) {
+      if (savedModel && models.includes(savedModel)) {
         modelSelect.value = savedModel;
       } else {
-        modelSelect.value = models[0].value;
+        modelSelect.value = models[0];
       }
     }
 
@@ -926,7 +934,7 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       chatMessages.innerHTML = messages.map(msg => {
         const displayContent = msg.role === 'assistant'
-          ? msg.content.replace(/```html[\s\S]*?```/g, '[Code applied to preview]')
+          ? msg.content.replace(/```html[\s\S]*?```/g, '').trim() || '✓ Updated'
           : msg.content;
 
         let usageHtml = '';
@@ -1136,6 +1144,9 @@ The user will describe what they want, and you'll generate the complete HTML for
             ];
           }
 
+          // Add :online suffix if online toggle is checked
+          const effectiveModel = onlineToggle.checked ? `${model}:online` : model;
+
           response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
             method: 'POST',
             headers: {
@@ -1145,7 +1156,7 @@ The user will describe what they want, and you'll generate the complete HTML for
               'X-Title': 'Vibey'
             },
             body: JSON.stringify({
-              model: model,
+              model: effectiveModel,
               messages: apiMessages,
               ...(isAnthropicModel && {
                 provider: {
