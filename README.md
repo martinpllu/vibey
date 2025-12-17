@@ -7,7 +7,8 @@ Enter your API key, describe what you want, and iterate on your app in real-time
 **Features:**
 - Anthropic direct API with prompt caching (recommended)
 - OpenRouter support for multiple models
+- Multiple apps with separate chat histories
 - Token usage and cost tracking
 - Everything persists in localStorage
 
-**Usage:** Open `index.html` in a browser.
+**Usage:** Open `index.html` in a browser. Press `Escape` to toggle the panel.

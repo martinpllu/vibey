@@ -82,6 +82,137 @@
       pointer-events: none;
     }
 
+    /* App bar */
+    .app-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 12px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+    }
+
+    .app-name-input {
+      flex: 1;
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      padding: 6px 10px;
+      color: white;
+      font-size: 14px;
+      font-weight: 500;
+      min-width: 0;
+    }
+
+    .app-name-input::placeholder {
+      color: rgba(255,255,255,0.7);
+    }
+
+    .app-name-input:focus {
+      outline: none;
+      background: rgba(255,255,255,0.3);
+    }
+
+    .app-bar-btn {
+      background: rgba(255,255,255,0.2);
+      border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 4px;
+      padding: 6px;
+      cursor: pointer;
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s;
+    }
+
+    .app-bar-btn:hover {
+      background: rgba(255,255,255,0.3);
+    }
+
+    .app-bar-btn svg {
+      width: 18px;
+      height: 18px;
+      fill: currentColor;
+    }
+
+    .app-selector {
+      position: relative;
+    }
+
+    .app-dropdown {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: white;
+      border-radius: 8px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      min-width: 200px;
+      max-height: 300px;
+      overflow-y: auto;
+      z-index: 100;
+      display: none;
+    }
+
+    .app-dropdown.open {
+      display: block;
+    }
+
+    .app-dropdown-item {
+      padding: 10px 12px;
+      cursor: pointer;
+      color: #333;
+      font-size: 14px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .app-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .app-dropdown-item:hover {
+      background: #f5f5f5;
+    }
+
+    .app-dropdown-item.active {
+      background: #f0f0ff;
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .app-dropdown-item.new-app {
+      color: #667eea;
+      font-weight: 500;
+    }
+
+    .app-delete-btn {
+      background: none;
+      border: none;
+      color: #999;
+      cursor: pointer;
+      padding: 2px;
+      display: flex;
+      opacity: 0;
+      transition: opacity 0.2s, color 0.2s;
+    }
+
+    .app-dropdown-item:hover .app-delete-btn {
+      opacity: 1;
+    }
+
+    .app-delete-btn:hover {
+      color: #dc3545;
+    }
+
+    .app-delete-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
     /* Panel header with tabs */
     .panel-header {
       display: flex;
@@ -347,6 +478,17 @@
 
   <!-- Overlay panel -->
   <div id="vibey-panel">
+    <!-- App bar -->
+    <div class="app-bar">
+      <input type="text" id="app-name-input" class="app-name-input" placeholder="App name..." value="My App">
+      <div class="app-selector">
+        <button class="app-bar-btn" id="app-menu-btn" title="Switch app">
+          <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+        </button>
+        <div class="app-dropdown" id="app-dropdown"></div>
+      </div>
+    </div>
+
     <div class="panel-header">
       <button class="tab-btn active" data-tab="chat">Chat</button>
       <button class="tab-btn" data-tab="settings">Settings</button>
@@ -405,16 +547,18 @@
   <script>
     // Storage keys
     const STORAGE_KEYS = {
+      apps: 'vibey_apps',
+      currentAppId: 'vibey_current_app_id',
       provider: 'vibey_provider',
-      apiKey: 'vibey_api_key',
       anthropicApiKey: 'vibey_anthropic_api_key',
       openrouterApiKey: 'vibey_openrouter_api_key',
-      model: 'vibey_model',
-      code: 'vibey_code',
-      messages: 'vibey_messages',
       panelCollapsed: 'vibey_panel_collapsed',
       showCost: 'vibey_show_cost'
     };
+
+    // App state
+    let apps = [];
+    let currentAppId = null;
 
     // Model options per provider
     const MODELS = {
@@ -468,6 +612,9 @@ The user will describe what they want, and you'll generate the complete HTML for
     const showCostToggle = document.getElementById('show-cost-toggle');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
+    const appNameInput = document.getElementById('app-name-input');
+    const appMenuBtn = document.getElementById('app-menu-btn');
+    const appDropdown = document.getElementById('app-dropdown');
 
     // Update UI based on selected provider
     function updateProviderUI() {
@@ -500,24 +647,164 @@ The user will describe what they want, and you'll generate the complete HTML for
       }
     }
 
+    // App management functions
+    function generateId() {
+      return Date.now().toString(36) + Math.random().toString(36).substr(2);
+    }
+
+    function getCurrentApp() {
+      return apps.find(a => a.id === currentAppId);
+    }
+
+    function saveApps() {
+      localStorage.setItem(STORAGE_KEYS.apps, JSON.stringify(apps));
+      localStorage.setItem(STORAGE_KEYS.currentAppId, currentAppId);
+    }
+
+    function loadApps() {
+      const savedApps = localStorage.getItem(STORAGE_KEYS.apps);
+      if (savedApps) {
+        apps = JSON.parse(savedApps);
+      }
+
+      // Migrate old data if no apps exist
+      if (apps.length === 0) {
+        const oldCode = localStorage.getItem('vibey_code');
+        const oldMessages = localStorage.getItem('vibey_messages');
+        apps.push({
+          id: generateId(),
+          name: 'My App',
+          code: oldCode || '',
+          messages: oldMessages ? JSON.parse(oldMessages) : []
+        });
+      }
+
+      currentAppId = localStorage.getItem(STORAGE_KEYS.currentAppId) || apps[0]?.id;
+      if (!apps.find(a => a.id === currentAppId)) {
+        currentAppId = apps[0]?.id;
+      }
+      saveApps();
+    }
+
+    function switchToApp(appId) {
+      // Save current app state first
+      const currentApp = getCurrentApp();
+      if (currentApp) {
+        currentApp.messages = messages;
+      }
+      saveApps();
+
+      // Switch to new app
+      currentAppId = appId;
+      const newApp = getCurrentApp();
+      if (newApp) {
+        messages = newApp.messages || [];
+        appNameInput.value = newApp.name;
+        if (newApp.code) {
+          updatePreview(newApp.code);
+        } else {
+          previewFrame.srcdoc = "<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>";
+        }
+        renderMessages();
+      }
+      saveApps();
+      renderAppDropdown();
+    }
+
+    function createNewApp() {
+      const newApp = {
+        id: generateId(),
+        name: 'New App',
+        code: '',
+        messages: []
+      };
+      apps.push(newApp);
+      switchToApp(newApp.id);
+    }
+
+    function deleteApp(appId) {
+      if (apps.length <= 1) {
+        alert('Cannot delete the last app');
+        return;
+      }
+      if (!confirm('Delete this app?')) return;
+
+      const idx = apps.findIndex(a => a.id === appId);
+      if (idx !== -1) {
+        apps.splice(idx, 1);
+        if (currentAppId === appId) {
+          switchToApp(apps[0].id);
+        } else {
+          saveApps();
+          renderAppDropdown();
+        }
+      }
+    }
+
+    function renameCurrentApp(name) {
+      const app = getCurrentApp();
+      if (app) {
+        app.name = name || 'Untitled';
+        saveApps();
+        renderAppDropdown();
+      }
+    }
+
+    function renderAppDropdown() {
+      appDropdown.innerHTML = apps.map(app => `
+        <div class="app-dropdown-item ${app.id === currentAppId ? 'active' : ''}" data-app-id="${app.id}">
+          <span>${app.name}</span>
+          ${apps.length > 1 ? `<button class="app-delete-btn" data-delete-id="${app.id}" title="Delete app">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
+          </button>` : ''}
+        </div>
+      `).join('') + `
+        <div class="app-dropdown-item new-app" id="new-app-btn">
+          <span>+ New App</span>
+        </div>
+      `;
+
+      // Add click handlers
+      appDropdown.querySelectorAll('[data-app-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          if (!e.target.closest('.app-delete-btn')) {
+            switchToApp(el.dataset.appId);
+            appDropdown.classList.remove('open');
+          }
+        });
+      });
+
+      appDropdown.querySelectorAll('[data-delete-id]').forEach(el => {
+        el.addEventListener('click', (e) => {
+          e.stopPropagation();
+          deleteApp(el.dataset.deleteId);
+        });
+      });
+
+      document.getElementById('new-app-btn')?.addEventListener('click', () => {
+        createNewApp();
+        appDropdown.classList.remove('open');
+      });
+    }
+
     // Initialize
     function init() {
+      // Load apps
+      loadApps();
+      const currentApp = getCurrentApp();
+      if (currentApp) {
+        messages = currentApp.messages || [];
+        appNameInput.value = currentApp.name;
+        if (currentApp.code) {
+          updatePreview(currentApp.code);
+        }
+        renderMessages();
+      }
+      renderAppDropdown();
+
       // Load saved provider (default to anthropic)
       providerSelect.value = localStorage.getItem(STORAGE_KEYS.provider) || 'anthropic';
       updateProviderUI();
-
-      // Load saved messages
-      const savedMessages = localStorage.getItem(STORAGE_KEYS.messages);
-      if (savedMessages) {
-        messages = JSON.parse(savedMessages);
-        renderMessages();
-      }
-
-      // Load saved code
-      const savedCode = localStorage.getItem(STORAGE_KEYS.code);
-      if (savedCode) {
-        updatePreview(savedCode);
-      }
 
       // Load panel state
       const collapsed = localStorage.getItem(STORAGE_KEYS.panelCollapsed) === 'true';
@@ -533,6 +820,13 @@ The user will describe what they want, and you'll generate the complete HTML for
       toggle.addEventListener('click', togglePanel);
       sendBtn.addEventListener('click', sendMessage);
       chatInput.addEventListener('keydown', handleInputKeydown);
+
+      // Keyboard shortcut: Escape to toggle panel
+      document.addEventListener('keydown', (e) => {
+        if (e.key === 'Escape') {
+          togglePanel();
+        }
+      });
       showCostToggle.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.showCost, showCostToggle.checked);
         renderMessages();
@@ -541,6 +835,18 @@ The user will describe what they want, and you'll generate the complete HTML for
       apiKeyInput.addEventListener('change', saveSettings);
       modelSelect.addEventListener('change', saveSettings);
       clearCodeBtn.addEventListener('click', clearCode);
+
+      // App management
+      appNameInput.addEventListener('change', () => renameCurrentApp(appNameInput.value));
+      appMenuBtn.addEventListener('click', () => {
+        appDropdown.classList.toggle('open');
+      });
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.app-selector')) {
+          appDropdown.classList.remove('open');
+        }
+      });
 
       // Tab switching
       tabBtns.forEach(btn => {
@@ -596,7 +902,12 @@ The user will describe what they want, and you'll generate the complete HTML for
       const msg = { role, content };
       if (usage) msg.usage = usage;
       messages.push(msg);
-      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
+      // Save to current app
+      const app = getCurrentApp();
+      if (app) {
+        app.messages = messages;
+        saveApps();
+      }
       renderMessages();
     }
 
@@ -671,13 +982,22 @@ The user will describe what they want, and you'll generate the complete HTML for
 
     function updatePreview(code) {
       previewFrame.srcdoc = code;
-      localStorage.setItem(STORAGE_KEYS.code, code);
+      // Save to current app
+      const app = getCurrentApp();
+      if (app) {
+        app.code = code;
+        saveApps();
+      }
     }
 
     function clearCode() {
-      if (confirm('This will clear all generated code and chat history. Continue?')) {
-        localStorage.removeItem(STORAGE_KEYS.code);
-        localStorage.removeItem(STORAGE_KEYS.messages);
+      if (confirm('This will clear all generated code and chat history for this app. Continue?')) {
+        const app = getCurrentApp();
+        if (app) {
+          app.code = '';
+          app.messages = [];
+          saveApps();
+        }
         messages = [];
         renderMessages();
         previewFrame.srcdoc = "<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>";
