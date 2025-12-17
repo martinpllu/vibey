@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibey - Vibe Coding Tool</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body, html {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    }
+
+    /* Preview iframe takes full page */
+    #preview-frame {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: none;
+      background: #f5f5f5;
+    }
+
+    /* Floating toggle button */
+    #vibey-toggle {
+      position: fixed;
+      bottom: 20px;
+      right: 20px;
+      width: 56px;
+      height: 56px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border: none;
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      z-index: 10001;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+
+    #vibey-toggle:hover {
+      transform: scale(1.05);
+      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+    }
+
+    #vibey-toggle svg {
+      width: 24px;
+      height: 24px;
+      fill: white;
+    }
+
+    /* Overlay panel */
+    #vibey-panel {
+      position: fixed;
+      bottom: 90px;
+      right: 20px;
+      width: 400px;
+      max-width: calc(100vw - 40px);
+      height: 500px;
+      max-height: calc(100vh - 120px);
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      transition: opacity 0.2s, transform 0.2s;
+    }
+
+    #vibey-panel.collapsed {
+      opacity: 0;
+      transform: translateY(20px) scale(0.95);
+      pointer-events: none;
+    }
+
+    /* Panel header with tabs */
+    .panel-header {
+      display: flex;
+      background: #f8f9fa;
+      border-bottom: 1px solid #e9ecef;
+    }
+
+    .tab-btn {
+      flex: 1;
+      padding: 12px 16px;
+      border: none;
+      background: transparent;
+      cursor: pointer;
+      font-size: 14px;
+      font-weight: 500;
+      color: #6c757d;
+      transition: color 0.2s, background 0.2s;
+    }
+
+    .tab-btn:hover {
+      background: #e9ecef;
+    }
+
+    .tab-btn.active {
+      color: #667eea;
+      background: white;
+      border-bottom: 2px solid #667eea;
+    }
+
+    /* Tab content */
+    .tab-content {
+      display: none;
+      flex: 1;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .tab-content.active {
+      display: flex;
+    }
+
+    /* Settings tab */
+    .settings-content {
+      padding: 16px;
+      overflow-y: auto;
+    }
+
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .form-group label {
+      display: block;
+      margin-bottom: 6px;
+      font-size: 13px;
+      font-weight: 500;
+      color: #495057;
+    }
+
+    .form-group input,
+    .form-group select {
+      width: 100%;
+      padding: 10px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      font-size: 14px;
+      transition: border-color 0.2s;
+    }
+
+    .form-group input:focus,
+    .form-group select:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .form-hint {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 4px;
+    }
+
+    /* Chat tab */
+    .chat-messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .message {
+      max-width: 85%;
+      padding: 10px 14px;
+      border-radius: 12px;
+      font-size: 14px;
+      line-height: 1.4;
+    }
+
+    .message.user {
+      align-self: flex-end;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border-bottom-right-radius: 4px;
+    }
+
+    .message.assistant {
+      align-self: flex-start;
+      background: #f1f3f4;
+      color: #333;
+      border-bottom-left-radius: 4px;
+    }
+
+    .message.error {
+      background: #fee;
+      color: #c00;
+    }
+
+    .message-usage {
+      font-size: 11px;
+      color: #888;
+      margin-top: 6px;
+      padding-top: 6px;
+      border-top: 1px solid rgba(0,0,0,0.1);
+    }
+
+    .message-usage span {
+      margin-right: 10px;
+    }
+
+    .toggle-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 14px;
+    }
+
+    .toggle-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .message.system {
+      align-self: center;
+      background: #e8f4f8;
+      color: #0077b6;
+      font-size: 12px;
+    }
+
+    .chat-input-area {
+      padding: 12px;
+      border-top: 1px solid #e9ecef;
+      display: flex;
+      gap: 8px;
+    }
+
+    .chat-input-area textarea {
+      flex: 1;
+      padding: 10px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 8px;
+      font-size: 14px;
+      resize: none;
+      font-family: inherit;
+      min-height: 44px;
+      max-height: 120px;
+    }
+
+    .chat-input-area textarea:focus {
+      outline: none;
+      border-color: #667eea;
+    }
+
+    .send-btn {
+      padding: 10px 16px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: 500;
+      transition: opacity 0.2s;
+    }
+
+    .send-btn:hover {
+      opacity: 0.9;
+    }
+
+    .send-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    /* Loading indicator */
+    .loading {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      background: #f1f3f4;
+      border-radius: 12px;
+      align-self: flex-start;
+    }
+
+    .loading-dots {
+      display: flex;
+      gap: 4px;
+    }
+
+    .loading-dots span {
+      width: 8px;
+      height: 8px;
+      background: #667eea;
+      border-radius: 50%;
+      animation: bounce 1.4s infinite ease-in-out;
+    }
+
+    .loading-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .loading-dots span:nth-child(2) { animation-delay: -0.16s; }
+
+    @keyframes bounce {
+      0%, 80%, 100% { transform: scale(0); }
+      40% { transform: scale(1); }
+    }
+
+    /* Empty state */
+    .empty-state {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #6c757d;
+      text-align: center;
+      padding: 20px;
+    }
+
+    .empty-state svg {
+      width: 48px;
+      height: 48px;
+      margin-bottom: 12px;
+      opacity: 0.5;
+    }
+  </style>
+</head>
+<body>
+  <!-- Preview iframe -->
+  <iframe id="preview-frame" srcdoc="<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>"></iframe>
+
+  <!-- Toggle button -->
+  <button id="vibey-toggle" title="Toggle Vibey panel">
+    <svg viewBox="0 0 24 24" class="icon-chat">
+      <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+    </svg>
+  </button>
+
+  <!-- Overlay panel -->
+  <div id="vibey-panel">
+    <div class="panel-header">
+      <button class="tab-btn active" data-tab="chat">Chat</button>
+      <button class="tab-btn" data-tab="settings">Settings</button>
+    </div>
+
+    <!-- Chat tab -->
+    <div class="tab-content active" data-tab="chat">
+      <div class="chat-messages" id="chat-messages">
+        <div class="empty-state">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+          </svg>
+          <p>Describe what you want to build and I'll generate the code!</p>
+        </div>
+      </div>
+      <div class="chat-input-area">
+        <textarea id="chat-input" placeholder="Describe your app..." rows="1"></textarea>
+        <button class="send-btn" id="send-btn">Send</button>
+      </div>
+    </div>
+
+    <!-- Settings tab -->
+    <div class="tab-content" data-tab="settings">
+      <div class="settings-content">
+        <div class="form-group">
+          <label for="api-key">OpenRouter API Key</label>
+          <input type="password" id="api-key" placeholder="sk-or-...">
+          <p class="form-hint">Get your key at <a href="https://openrouter.ai/keys" target="_blank">openrouter.ai/keys</a></p>
+        </div>
+        <div class="form-group">
+          <label for="model-select">Model</label>
+          <select id="model-select">
+            <option value="anthropic/claude-opus-4.5">Claude Opus 4.5</option>
+            <option value="anthropic/claude-sonnet-4">Claude Sonnet 4</option>
+            <option value="anthropic/claude-3.5-sonnet">Claude 3.5 Sonnet</option>
+            <option value="openai/gpt-4o">GPT-4o</option>
+            <option value="openai/gpt-4o-mini">GPT-4o Mini</option>
+            <option value="google/gemini-2.0-flash-001">Gemini 2.0 Flash</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="show-cost-toggle" checked>
+            <span>Show token usage & cost</span>
+          </label>
+        </div>
+        <div class="form-group">
+          <label>Current Code</label>
+          <p class="form-hint">The generated HTML is stored locally and will persist across sessions.</p>
+          <button id="clear-code-btn" style="margin-top: 8px; padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Code & Start Fresh</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Storage keys
+    const STORAGE_KEYS = {
+      apiKey: 'vibey_api_key',
+      model: 'vibey_model',
+      code: 'vibey_code',
+      messages: 'vibey_messages',
+      panelCollapsed: 'vibey_panel_collapsed',
+      showCost: 'vibey_show_cost'
+    };
+
+    // System prompt for the LLM
+    const SYSTEM_PROMPT = `You are a helpful assistant that generates single-page HTML applications.
+
+IMPORTANT RULES:
+1. Always return the COMPLETE HTML code for the entire page
+2. The code must be a valid, self-contained HTML document with <!DOCTYPE html>
+3. Include all CSS in a <style> tag and all JavaScript in a <script> tag
+4. Do not use external dependencies unless they can be loaded from a CDN
+5. Make the app visually appealing with good styling
+6. Return ONLY the HTML code inside a markdown code block (triple backticks with html)
+7. Do not include any explanation before or after the code block - just the code
+
+The user will describe what they want, and you'll generate the complete HTML for it.`;
+
+    // State
+    let messages = [];
+    let isLoading = false;
+
+    // DOM elements
+    const panel = document.getElementById('vibey-panel');
+    const toggle = document.getElementById('vibey-toggle');
+    const chatMessages = document.getElementById('chat-messages');
+    const chatInput = document.getElementById('chat-input');
+    const sendBtn = document.getElementById('send-btn');
+    const apiKeyInput = document.getElementById('api-key');
+    const modelSelect = document.getElementById('model-select');
+    const previewFrame = document.getElementById('preview-frame');
+    const clearCodeBtn = document.getElementById('clear-code-btn');
+    const showCostToggle = document.getElementById('show-cost-toggle');
+    const tabBtns = document.querySelectorAll('.tab-btn');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    // Initialize
+    function init() {
+      // Load saved settings
+      apiKeyInput.value = localStorage.getItem(STORAGE_KEYS.apiKey) || '';
+      const savedModel = localStorage.getItem(STORAGE_KEYS.model);
+      modelSelect.value = savedModel || 'anthropic/claude-opus-4.5';
+      // If saved model doesn't exist in options, reset to default
+      if (!modelSelect.value) {
+        modelSelect.value = 'anthropic/claude-opus-4.5';
+        localStorage.setItem(STORAGE_KEYS.model, modelSelect.value);
+      }
+
+      // Load saved messages
+      const savedMessages = localStorage.getItem(STORAGE_KEYS.messages);
+      if (savedMessages) {
+        messages = JSON.parse(savedMessages);
+        renderMessages();
+      }
+
+      // Load saved code
+      const savedCode = localStorage.getItem(STORAGE_KEYS.code);
+      if (savedCode) {
+        updatePreview(savedCode);
+      }
+
+      // Load panel state
+      const collapsed = localStorage.getItem(STORAGE_KEYS.panelCollapsed) === 'true';
+      if (collapsed) {
+        panel.classList.add('collapsed');
+      }
+
+      // Load show cost setting (default to true)
+      const showCost = localStorage.getItem(STORAGE_KEYS.showCost);
+      showCostToggle.checked = showCost === null ? true : showCost === 'true';
+
+      // Event listeners
+      toggle.addEventListener('click', togglePanel);
+      sendBtn.addEventListener('click', sendMessage);
+      chatInput.addEventListener('keydown', handleInputKeydown);
+      showCostToggle.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_KEYS.showCost, showCostToggle.checked);
+        renderMessages();
+      });
+      apiKeyInput.addEventListener('change', saveSettings);
+      modelSelect.addEventListener('change', saveSettings);
+      clearCodeBtn.addEventListener('click', clearCode);
+
+      // Tab switching
+      tabBtns.forEach(btn => {
+        btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+      });
+
+      // Auto-resize textarea
+      chatInput.addEventListener('input', autoResizeTextarea);
+    }
+
+    function togglePanel() {
+      panel.classList.toggle('collapsed');
+      localStorage.setItem(STORAGE_KEYS.panelCollapsed, panel.classList.contains('collapsed'));
+    }
+
+    function switchTab(tabName) {
+      tabBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
+      tabContents.forEach(content => content.classList.toggle('active', content.dataset.tab === tabName));
+    }
+
+    function saveSettings() {
+      localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value);
+      // Only save model if it has a value
+      if (modelSelect.value) {
+        localStorage.setItem(STORAGE_KEYS.model, modelSelect.value);
+      }
+    }
+
+    function autoResizeTextarea() {
+      chatInput.style.height = 'auto';
+      chatInput.style.height = Math.min(chatInput.scrollHeight, 120) + 'px';
+    }
+
+    function handleInputKeydown(e) {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    }
+
+    function addMessage(role, content, usage = null) {
+      const msg = { role, content };
+      if (usage) msg.usage = usage;
+      messages.push(msg);
+      localStorage.setItem(STORAGE_KEYS.messages, JSON.stringify(messages));
+      renderMessages();
+    }
+
+    function renderMessages() {
+      if (messages.length === 0) {
+        chatMessages.innerHTML = `
+          <div class="empty-state">
+            <svg viewBox="0 0 24 24" fill="currentColor">
+              <path d="M20 2H4c-1.1 0-2 .9-2 2v18l4-4h14c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H6l-2 2V4h16v12z"/>
+            </svg>
+            <p>Describe what you want to build and I'll generate the code!</p>
+          </div>
+        `;
+        return;
+      }
+
+      chatMessages.innerHTML = messages.map(msg => {
+        const displayContent = msg.role === 'assistant'
+          ? msg.content.replace(/```html[\s\S]*?```/g, '[Code applied to preview]')
+          : msg.content;
+
+        let usageHtml = '';
+        if (msg.role === 'assistant' && msg.usage && showCostToggle.checked) {
+          const { prompt_tokens, completion_tokens, total_cost } = msg.usage;
+          const costStr = total_cost != null ? `$${total_cost.toFixed(4)}` : 'N/A';
+          usageHtml = `<div class="message-usage">
+            <span>In: ${prompt_tokens?.toLocaleString() || '?'}</span>
+            <span>Out: ${completion_tokens?.toLocaleString() || '?'}</span>
+            <span>Cost: ${costStr}</span>
+          </div>`;
+        }
+
+        return `<div class="message ${msg.role}">${escapeHtml(displayContent)}${usageHtml}</div>`;
+      }).join('');
+
+      if (isLoading) {
+        chatMessages.innerHTML += `
+          <div class="loading">
+            <div class="loading-dots">
+              <span></span><span></span><span></span>
+            </div>
+          </div>
+        `;
+      }
+
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function extractHtmlCode(text) {
+      const match = text.match(/```html\s*([\s\S]*?)```/);
+      return match ? match[1].trim() : null;
+    }
+
+    function updatePreview(code) {
+      previewFrame.srcdoc = code;
+      localStorage.setItem(STORAGE_KEYS.code, code);
+    }
+
+    function clearCode() {
+      if (confirm('This will clear all generated code and chat history. Continue?')) {
+        localStorage.removeItem(STORAGE_KEYS.code);
+        localStorage.removeItem(STORAGE_KEYS.messages);
+        messages = [];
+        renderMessages();
+        previewFrame.srcdoc = "<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>";
+      }
+    }
+
+    async function sendMessage() {
+      const content = chatInput.value.trim();
+      if (!content || isLoading) return;
+
+      const apiKey = apiKeyInput.value.trim();
+      if (!apiKey) {
+        switchTab('settings');
+        apiKeyInput.focus();
+        addMessage('system', 'Please enter your OpenRouter API key in settings.');
+        return;
+      }
+
+      // Add user message
+      addMessage('user', content);
+      chatInput.value = '';
+      chatInput.style.height = 'auto';
+
+      // Show loading
+      isLoading = true;
+      sendBtn.disabled = true;
+      renderMessages();
+
+      try {
+        const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${apiKey}`,
+            'HTTP-Referer': window.location.href,
+            'X-Title': 'Vibey'
+          },
+          body: JSON.stringify({
+            model: modelSelect.value,
+            messages: [
+              { role: 'system', content: SYSTEM_PROMPT },
+              ...messages.filter(m => m.role !== 'system').map(m => ({
+                role: m.role,
+                content: m.content
+              }))
+            ]
+          })
+        });
+
+        if (!response.ok) {
+          const error = await response.json();
+          throw new Error(error.error?.message || 'API request failed');
+        }
+
+        const data = await response.json();
+        const assistantMessage = data.choices[0]?.message?.content || 'No response';
+
+        // Extract usage info (OpenRouter uses 'cost' at top level or in usage)
+        const usage = data.usage ? {
+          prompt_tokens: data.usage.prompt_tokens,
+          completion_tokens: data.usage.completion_tokens,
+          total_cost: data.usage.cost ?? data.usage.total_cost ?? data.total_cost
+        } : null;
+        console.log('OpenRouter response:', data); // Debug: check where cost is
+
+        // Extract and apply code
+        const htmlCode = extractHtmlCode(assistantMessage);
+        if (htmlCode) {
+          updatePreview(htmlCode);
+        }
+
+        addMessage('assistant', assistantMessage, usage);
+
+      } catch (error) {
+        addMessage('error', `Error: ${error.message}`);
+      } finally {
+        isLoading = false;
+        sendBtn.disabled = false;
+        renderMessages();
+      }
+    }
+
+    // Start the app
+    init();
+  </script>
+</body>
+</html>
