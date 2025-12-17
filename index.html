@@ -482,6 +482,15 @@
     <div class="app-bar">
       <input type="text" id="app-name-input" class="app-name-input" placeholder="App name..." value="My App">
       <div class="app-selector">
+        <button class="app-bar-btn" id="share-btn" title="Share app">
+          <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
+        </button>
+        <div class="app-dropdown" id="share-dropdown">
+          <div class="app-dropdown-item" id="share-app-only">App only</div>
+          <div class="app-dropdown-item" id="share-with-chat">App with chat</div>
+        </div>
+      </div>
+      <div class="app-selector">
         <button class="app-bar-btn" id="app-menu-btn" title="Switch app">
           <svg viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
         </button>
@@ -621,6 +630,8 @@ The user will describe what they want, and you'll generate the complete HTML for
     const appNameInput = document.getElementById('app-name-input');
     const appMenuBtn = document.getElementById('app-menu-btn');
     const appDropdown = document.getElementById('app-dropdown');
+    const shareBtn = document.getElementById('share-btn');
+    const shareDropdown = document.getElementById('share-dropdown');
 
     // Update UI based on selected provider
     function updateProviderUI() {
@@ -758,6 +769,106 @@ The user will describe what they want, and you'll generate the complete HTML for
       }
     }
 
+    // URL-safe base64 encoding/decoding
+    function toUrlSafeBase64(str) {
+      return btoa(unescape(encodeURIComponent(str)))
+        .replace(/\+/g, '-')
+        .replace(/\//g, '_')
+        .replace(/=+$/, '');
+    }
+
+    function fromUrlSafeBase64(str) {
+      // Restore standard base64 characters
+      let base64 = str.replace(/-/g, '+').replace(/_/g, '/');
+      // Add padding if needed
+      while (base64.length % 4) base64 += '=';
+      return decodeURIComponent(escape(atob(base64)));
+    }
+
+    function shareApp(includeChat = false) {
+      const app = getCurrentApp();
+      if (!app || !app.code) {
+        alert('No app code to share yet!');
+        return;
+      }
+      // Encode the code as URL-safe base64
+      const encoded = toUrlSafeBase64(app.code);
+      // Include app name in share URL
+      const nameEncoded = toUrlSafeBase64(app.name || 'Shared App');
+      let url = `${window.location.origin}${window.location.pathname}?code=${encoded}&name=${nameEncoded}`;
+
+      // Optionally include chat history
+      if (includeChat && app.messages && app.messages.length > 0) {
+        const chatEncoded = toUrlSafeBase64(JSON.stringify(app.messages));
+        url += `&chat=${chatEncoded}`;
+      }
+
+      // Copy to clipboard
+      navigator.clipboard.writeText(url).then(() => {
+        alert('Share link copied to clipboard!');
+      }).catch(() => {
+        // Fallback: show the URL
+        prompt('Copy this share link:', url);
+      });
+    }
+
+    function generateShortId() {
+      // Generate a short 4-character alphanumeric ID
+      return Math.random().toString(36).substr(2, 4);
+    }
+
+    function loadFromUrl() {
+      const params = new URLSearchParams(window.location.search);
+      const encoded = params.get('code');
+      if (encoded) {
+        try {
+          const code = fromUrlSafeBase64(encoded);
+
+          // Get original app name from URL, or default to 'Shared App'
+          let originalName = 'Shared App';
+          const nameEncoded = params.get('name');
+          if (nameEncoded) {
+            try {
+              originalName = fromUrlSafeBase64(nameEncoded);
+            } catch (e) {
+              console.error('Failed to decode app name:', e);
+            }
+          }
+
+          // Check for chat history
+          let chatMessages = [];
+          const chatEncoded = params.get('chat');
+          if (chatEncoded) {
+            try {
+              chatMessages = JSON.parse(fromUrlSafeBase64(chatEncoded));
+            } catch (e) {
+              console.error('Failed to load chat history:', e);
+            }
+          }
+
+          // Generate unique name with short ID suffix to avoid collisions
+          const uniqueName = `${originalName} (${generateShortId()})`;
+
+          // Create a new app with the shared code
+          const newApp = {
+            id: generateId(),
+            name: uniqueName,
+            code: code,
+            messages: chatMessages
+          };
+          apps.push(newApp);
+          currentAppId = newApp.id;
+          saveApps();
+          // Clear the URL parameter
+          window.history.replaceState({}, '', window.location.pathname);
+          return true;
+        } catch (e) {
+          console.error('Failed to load shared app:', e);
+        }
+      }
+      return false;
+    }
+
     function renderAppDropdown() {
       appDropdown.innerHTML = apps.map(app => `
         <div class="app-dropdown-item ${app.id === currentAppId ? 'active' : ''}" data-app-id="${app.id}">
@@ -797,6 +908,9 @@ The user will describe what they want, and you'll generate the complete HTML for
 
     // Initialize
     function init() {
+      // Check for shared app in URL first
+      const loadedFromUrl = loadFromUrl();
+
       // Load apps
       loadApps();
       const currentApp = getCurrentApp();
@@ -809,6 +923,14 @@ The user will describe what they want, and you'll generate the complete HTML for
         renderMessages();
       }
       renderAppDropdown();
+
+      // If loaded from URL, make sure preview is updated
+      if (loadedFromUrl) {
+        const app = getCurrentApp();
+        if (app?.code) {
+          updatePreview(app.code);
+        }
+      }
 
       // Load saved provider (default to anthropic)
       providerSelect.value = localStorage.getItem(STORAGE_KEYS.provider) || 'anthropic';
@@ -846,13 +968,29 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       // App management
       appNameInput.addEventListener('change', () => renameCurrentApp(appNameInput.value));
-      appMenuBtn.addEventListener('click', () => {
-        appDropdown.classList.toggle('open');
+      shareBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        shareDropdown.classList.toggle('open');
+        appDropdown.classList.remove('open');
       });
-      // Close dropdown when clicking outside
+      document.getElementById('share-app-only').addEventListener('click', () => {
+        shareApp(false);
+        shareDropdown.classList.remove('open');
+      });
+      document.getElementById('share-with-chat').addEventListener('click', () => {
+        shareApp(true);
+        shareDropdown.classList.remove('open');
+      });
+      appMenuBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        appDropdown.classList.toggle('open');
+        shareDropdown.classList.remove('open');
+      });
+      // Close dropdowns when clicking outside
       document.addEventListener('click', (e) => {
         if (!e.target.closest('.app-selector')) {
           appDropdown.classList.remove('open');
+          shareDropdown.classList.remove('open');
         }
       });
 
