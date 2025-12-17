@@ -581,6 +581,8 @@
         <div class="form-group">
           <label for="model-select">Model</label>
           <select id="model-select"></select>
+          <input type="text" id="custom-model-input" placeholder="e.g. openai/gpt-4o" style="display: none; margin-top: 8px;">
+          <p class="form-hint">Browse available models at <a href="https://openrouter.ai/models" target="_blank">openrouter.ai/models</a></p>
         </div>
         <div class="form-group">
           <label class="toggle-label">
@@ -608,6 +610,7 @@
       currentAppId: 'vibey_current_app_id',
       apiKey: 'vibey_openrouter_api_key',
       model: 'vibey_model',
+      customModel: 'vibey_custom_model',
       panelCollapsed: 'vibey_panel_collapsed',
       showCost: 'vibey_show_cost'
     };
@@ -618,12 +621,8 @@
 
     // Available models
     const MODELS = [
-      'anthropic/claude-sonnet-4',
-      'anthropic/claude-3.5-sonnet',
-      'openai/gpt-4o',
-      'openai/gpt-4o-mini',
-      'google/gemini-2.0-flash-001',
-      'google/gemini-2.5-flash-preview-05-20'
+      { id: 'google/gemini-3-flash-preview', name: 'Gemini 3 Flash' },
+      { id: 'anthropic/claude-opus-4.5', name: 'Claude Opus 4.5' }
     ];
 
     // System prompt for the LLM
@@ -653,6 +652,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     const apiKeyInput = document.getElementById('api-key');
     const apiKeySetup = document.getElementById('api-key-setup');
     const modelSelect = document.getElementById('model-select');
+    const customModelInput = document.getElementById('custom-model-input');
     const previewFrame = document.getElementById('preview-frame');
     const clearCodeBtn = document.getElementById('clear-code-btn');
     const showCostToggle = document.getElementById('show-cost-toggle');
@@ -668,15 +668,33 @@ The user will describe what they want, and you'll generate the complete HTML for
     // Initialize model selector
     function initModels() {
       const savedModel = localStorage.getItem(STORAGE_KEYS.model);
-      modelSelect.innerHTML = MODELS.map(m =>
-        `<option value="${m}">${m}</option>`
-      ).join('');
+      const savedCustomModel = localStorage.getItem(STORAGE_KEYS.customModel);
 
-      if (savedModel && MODELS.includes(savedModel)) {
+      // Build options: predefined models + Other
+      modelSelect.innerHTML = MODELS.map(m =>
+        `<option value="${m.id}">${m.name}</option>`
+      ).join('') + '<option value="other">Other...</option>';
+
+      // Check if saved model is a predefined one
+      const isPredefined = MODELS.some(m => m.id === savedModel);
+
+      if (savedModel === 'other' || (savedModel && !isPredefined)) {
+        modelSelect.value = 'other';
+        customModelInput.style.display = 'block';
+        customModelInput.value = savedCustomModel || savedModel || '';
+      } else if (savedModel && isPredefined) {
         modelSelect.value = savedModel;
       } else {
-        modelSelect.value = MODELS[0];
+        modelSelect.value = MODELS[0].id; // Default to first model (Gemini 3 Flash)
       }
+    }
+
+    // Get the effective model ID (handles "other" selection)
+    function getSelectedModel() {
+      if (modelSelect.value === 'other') {
+        return customModelInput.value.trim() || MODELS[0].id;
+      }
+      return modelSelect.value;
     }
 
     // Check if API key is configured and update UI accordingly
@@ -989,7 +1007,8 @@ The user will describe what they want, and you'll generate the complete HTML for
         renderMessages();
       });
       apiKeyInput.addEventListener('change', saveSettings);
-      modelSelect.addEventListener('change', saveSettings);
+      modelSelect.addEventListener('change', handleModelChange);
+      customModelInput.addEventListener('change', saveSettings);
       clearCodeBtn.addEventListener('click', clearCode);
 
       // App management
@@ -1043,9 +1062,22 @@ The user will describe what they want, and you'll generate the complete HTML for
       localStorage.setItem(STORAGE_KEYS.apiKey, apiKeyInput.value);
       if (modelSelect.value) {
         localStorage.setItem(STORAGE_KEYS.model, modelSelect.value);
+        if (modelSelect.value === 'other') {
+          localStorage.setItem(STORAGE_KEYS.customModel, customModelInput.value);
+        }
       }
       // Update setup UI when API key changes
       checkApiKeySetup();
+    }
+
+    function handleModelChange() {
+      if (modelSelect.value === 'other') {
+        customModelInput.style.display = 'block';
+        customModelInput.focus();
+      } else {
+        customModelInput.style.display = 'none';
+      }
+      saveSettings();
     }
 
     function autoResizeTextarea() {
@@ -1189,7 +1221,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       const startTime = performance.now();
 
       try {
-        const model = modelSelect.value;
+        const model = getSelectedModel();
         const isAnthropicModel = model.startsWith('anthropic/');
         const conversationMessages = messages.filter(m => m.role !== 'system' && m.role !== 'error');
 
