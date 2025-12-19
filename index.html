@@ -1386,33 +1386,35 @@ Submitted via Vibey`);
           content = await response.text();
         }
 
-        // Extract Vibey share URL params from the content
-        // Look for ?code= pattern in the content
-        const urlMatch = content.match(/[?&]code=([^&\s"'<>]+)/);
-        if (!urlMatch) throw new Error('No valid Vibey link found');
-
-        const codeParam = urlMatch[1];
-
-        // Try to extract name and chat params too
-        const nameMatch = content.match(/[?&]name=([^&\s"'<>]+)/);
-        const chatMatch = content.match(/[?&]chat=([^&\s"'<>]+)/);
-
-        // Decode the params
-        const code = fromUrlSafeBase64(codeParam);
-
+        // Try to extract Vibey share URL params from the content
+        let code, chatMessages = [];
         let appName = card.querySelector('h4')?.textContent || 'Community App';
-        if (nameMatch) {
-          try {
-            appName = fromUrlSafeBase64(nameMatch[1]);
-          } catch (e) {}
-        }
 
-        let chatMessages = [];
-        if (chatMatch) {
+        const urlMatch = content.match(/[?&]code=([^&\s"'<>]+)/);
+        if (urlMatch) {
+          // Content contains a Vibey share URL
+          const codeParam = urlMatch[1];
+          code = fromUrlSafeBase64(codeParam);
+
+          // Try to extract name and chat params too
+          const nameMatch = content.match(/[?&]name=([^&\s"'<>]+)/);
+          const chatMatch = content.match(/[?&]chat=([^&\s"'<>]+)/);
+
+          if (nameMatch) {
+            try { appName = fromUrlSafeBase64(nameMatch[1]); } catch (e) {}
+          }
+          if (chatMatch) {
+            try { chatMessages = JSON.parse(fromUrlSafeBase64(chatMatch[1])); } catch (e) {}
+          }
+        } else {
+          // Content might be raw base64-encoded HTML directly
           try {
-            chatMessages = JSON.parse(fromUrlSafeBase64(chatMatch[1]));
+            code = fromUrlSafeBase64(content.trim());
+            if (!code.includes('<!DOCTYPE') && !code.includes('<html') && !code.includes('<body')) {
+              throw new Error('Not valid HTML');
+            }
           } catch (e) {
-            console.error('Failed to parse chat:', e);
+            throw new Error('No valid Vibey link or code found');
           }
         }
 
