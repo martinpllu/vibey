@@ -812,8 +812,8 @@
           <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
         </button>
         <div class="app-dropdown" id="share-dropdown">
-          <div class="app-dropdown-item" id="share-app-only">Copy link (app only)</div>
-          <div class="app-dropdown-item" id="share-with-chat">Copy link (with chat)</div>
+          <div class="app-dropdown-item" id="share-app-only">Copy HTML</div>
+          <div class="app-dropdown-item" id="share-with-chat">Copy HTML (with chat)</div>
           <div class="app-dropdown-divider"></div>
           <div class="app-dropdown-item" id="add-to-community">Add to Community</div>
         </div>
@@ -921,11 +921,12 @@
     <div class="submit-modal-content">
       <h3>Submit to Community</h3>
       <p>Share your creation with others!</p>
-      <p class="submit-modal-success">✓ Share link copied to clipboard</p>
-      <p>Click below to open a GitHub Issue. Paste your link and tell us about your app.</p>
+      <p class="submit-modal-success">✓ HTML copied to clipboard</p>
+      <p>Create a new Gist, paste your HTML, then submit the Gist URL via GitHub Issue.</p>
       <div class="submit-modal-buttons">
         <button id="submit-modal-cancel" class="submit-modal-btn">Cancel</button>
-        <a id="submit-modal-open" href="#" target="_blank" class="submit-modal-btn primary">Open GitHub →</a>
+        <a href="https://gist.github.com" target="_blank" class="submit-modal-btn">Create Gist</a>
+        <a id="submit-modal-open" href="#" target="_blank" class="submit-modal-btn primary">Submit →</a>
       </div>
     </div>
   </div>
@@ -1205,30 +1206,39 @@ The user will describe what they want, and you'll generate the complete HTML for
       return decodeURIComponent(escape(atob(base64)));
     }
 
+    function exportAppHtml(includeChat = false) {
+      const app = getCurrentApp();
+      if (!app || !app.code) return null;
+
+      let html = app.code;
+
+      // Embed chat and metadata as a comment at the end
+      if (includeChat && app.messages && app.messages.length > 0) {
+        const vibeyData = {
+          name: app.name || 'Shared App',
+          messages: app.messages
+        };
+        html += `\n<!--VIBEY_DATA\n${JSON.stringify(vibeyData)}\nVIBEY_DATA-->`;
+      }
+
+      return html;
+    }
+
     function shareApp(includeChat = false) {
       const app = getCurrentApp();
       if (!app || !app.code) {
         alert('No app code to share yet!');
         return;
       }
-      // Encode the code as URL-safe base64
-      const encoded = toUrlSafeBase64(app.code);
-      // Include app name in share URL
-      const nameEncoded = toUrlSafeBase64(app.name || 'Shared App');
-      let url = `${window.location.origin}${window.location.pathname}?code=${encoded}&name=${nameEncoded}`;
 
-      // Optionally include chat history
-      if (includeChat && app.messages && app.messages.length > 0) {
-        const chatEncoded = toUrlSafeBase64(JSON.stringify(app.messages));
-        url += `&chat=${chatEncoded}`;
-      }
+      const html = exportAppHtml(includeChat);
 
-      // Copy to clipboard
-      navigator.clipboard.writeText(url).then(() => {
-        alert('Share link copied to clipboard!');
+      // Copy HTML to clipboard
+      navigator.clipboard.writeText(html).then(() => {
+        alert(includeChat ? 'HTML with chat copied to clipboard!' : 'HTML copied to clipboard!');
       }).catch(() => {
-        // Fallback: show the URL
-        prompt('Copy this share link:', url);
+        // Fallback: show in a prompt
+        prompt('Copy this HTML:', html.substring(0, 1000) + '...');
       });
     }
 
@@ -1240,15 +1250,9 @@ The user will describe what they want, and you'll generate the complete HTML for
         return;
       }
 
-      // Copy share URL with chat (silently)
-      const encoded = toUrlSafeBase64(app.code);
-      const nameEncoded = toUrlSafeBase64(app.name || 'Shared App');
-      let url = `${window.location.origin}${window.location.pathname}?code=${encoded}&name=${nameEncoded}`;
-      if (app.messages && app.messages.length > 0) {
-        const chatEncoded = toUrlSafeBase64(JSON.stringify(app.messages));
-        url += `&chat=${chatEncoded}`;
-      }
-      navigator.clipboard.writeText(url);
+      // Copy HTML with embedded chat (silently)
+      const html = exportAppHtml(true);
+      navigator.clipboard.writeText(html);
 
       // Build GitHub issue URL with template
       const issueTitle = encodeURIComponent(`[Community] ${app.name || 'My App'}`);
@@ -1386,38 +1390,41 @@ Submitted via Vibey`);
           content = await response.text();
         }
 
-        // Try to extract Vibey share URL params from the content
+        // Parse the content - expect HTML with optional VIBEY_DATA comment
         let code, chatMessages = [];
         let appName = card.querySelector('h4')?.textContent || 'Community App';
 
-        // Trim whitespace that might break base64 decoding
         content = content.trim();
 
-        const urlMatch = content.match(/[?&]code=([^&\s"'<>]+)/);
-        if (urlMatch) {
-          // Content contains a Vibey share URL
-          const codeParam = urlMatch[1];
-          code = fromUrlSafeBase64(codeParam);
-
-          // Try to extract name and chat params too
-          const nameMatch = content.match(/[?&]name=([^&\s"'<>]+)/);
-          const chatMatch = content.match(/[?&]chat=([^&\s"'<>]+)/);
-
-          if (nameMatch) {
-            try { appName = fromUrlSafeBase64(nameMatch[1]); } catch (e) {}
-          }
-          if (chatMatch) {
-            try { chatMessages = JSON.parse(fromUrlSafeBase64(chatMatch[1])); } catch (e) {}
+        // Check if content looks like HTML
+        if (content.includes('<!DOCTYPE') || content.includes('<html') || content.includes('<head') || content.includes('<body')) {
+          // Extract VIBEY_DATA comment if present
+          const vibeyMatch = content.match(/<!--VIBEY_DATA\n([\s\S]*?)\nVIBEY_DATA-->/);
+          if (vibeyMatch) {
+            try {
+              const vibeyData = JSON.parse(vibeyMatch[1]);
+              if (vibeyData.messages) chatMessages = vibeyData.messages;
+              if (vibeyData.name) appName = vibeyData.name;
+            } catch (e) {
+              console.error('Failed to parse VIBEY_DATA:', e);
+            }
+            // Remove the VIBEY_DATA comment from the code
+            code = content.replace(/\n<!--VIBEY_DATA\n[\s\S]*?\nVIBEY_DATA-->/, '');
+          } else {
+            // Plain HTML without embedded data
+            code = content;
           }
         } else {
-          // Content might be raw base64-encoded HTML directly
-          try {
-            code = fromUrlSafeBase64(content.trim());
-            if (!code.includes('<!DOCTYPE') && !code.includes('<html') && !code.includes('<body')) {
-              throw new Error('Not valid HTML');
-            }
-          } catch (e) {
-            throw new Error('No valid Vibey link or code found');
+          // Fallback: try old URL-based format for backwards compatibility
+          const urlMatch = content.match(/[?&]code=([^&\s"'<>]+)/);
+          if (urlMatch) {
+            code = fromUrlSafeBase64(urlMatch[1]);
+            const nameMatch = content.match(/[?&]name=([^&\s"'<>]+)/);
+            const chatMatch = content.match(/[?&]chat=([^&\s"'<>]+)/);
+            if (nameMatch) try { appName = fromUrlSafeBase64(nameMatch[1]); } catch (e) {}
+            if (chatMatch) try { chatMessages = JSON.parse(fromUrlSafeBase64(chatMatch[1])); } catch (e) {}
+          } else {
+            throw new Error('Content is not valid HTML');
           }
         }
 
