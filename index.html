@@ -1390,6 +1390,9 @@ Submitted via Vibey`);
         let code, chatMessages = [];
         let appName = card.querySelector('h4')?.textContent || 'Community App';
 
+        // Trim whitespace that might break base64 decoding
+        content = content.trim();
+
         const urlMatch = content.match(/[?&]code=([^&\s"'<>]+)/);
         if (urlMatch) {
           // Content contains a Vibey share URL
