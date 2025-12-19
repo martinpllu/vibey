@@ -189,6 +189,12 @@
       font-weight: 500;
     }
 
+    .app-dropdown-divider {
+      height: 1px;
+      background: #eee;
+      margin: 4px 0;
+    }
+
     .app-delete-btn {
       background: none;
       border: none;
@@ -350,6 +356,11 @@
 
     .message-usage .web-search-info {
       color: #667eea;
+      font-weight: 500;
+    }
+
+    .message-usage .model-info {
+      color: #a78bfa;
       font-weight: 500;
     }
 
@@ -657,6 +668,127 @@
       color: #22c55e !important;
       font-style: italic;
     }
+
+    /* Submit Modal */
+    .submit-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.5);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10001;
+    }
+
+    .submit-modal-content {
+      background: white;
+      border-radius: 12px;
+      padding: 24px;
+      max-width: 400px;
+      text-align: center;
+    }
+
+    .submit-modal-content h3 {
+      margin: 0 0 12px 0;
+      font-size: 18px;
+    }
+
+    .submit-modal-content p {
+      margin: 0 0 12px 0;
+      font-size: 14px;
+      color: #555;
+    }
+
+    .submit-modal-success {
+      color: #28a745;
+      font-weight: 500;
+    }
+
+    .submit-modal-buttons {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    .submit-modal-btn {
+      padding: 10px 20px;
+      border-radius: 6px;
+      border: 1px solid #ddd;
+      background: white;
+      cursor: pointer;
+      text-decoration: none;
+      color: inherit;
+      font-size: 14px;
+    }
+
+    .submit-modal-btn:hover {
+      background: #f5f5f5;
+    }
+
+    .submit-modal-btn.primary {
+      background: #667eea;
+      color: white;
+      border-color: #667eea;
+    }
+
+    .submit-modal-btn.primary:hover {
+      background: #5a6fd6;
+    }
+
+    /* Community Tab */
+    .community-grid {
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      overflow-y: auto;
+    }
+
+    .community-card {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 12px;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .community-card:hover {
+      background: #e9ecef;
+    }
+
+    .community-card h4 {
+      margin: 0 0 4px 0;
+      font-size: 14px;
+    }
+
+    .community-card .author {
+      font-size: 12px;
+      color: #666;
+      margin-bottom: 6px;
+    }
+
+    .community-card .description {
+      font-size: 13px;
+      color: #444;
+      margin: 0;
+    }
+
+    .community-empty {
+      text-align: center;
+      padding: 40px 20px;
+      color: #666;
+    }
+
+    .community-empty p {
+      margin: 0 0 8px 0;
+    }
+
+    .community-error {
+      text-align: center;
+      padding: 40px;
+      color: #dc3545;
+    }
   </style>
 </head>
 <body>
@@ -680,8 +812,10 @@
           <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
         </button>
         <div class="app-dropdown" id="share-dropdown">
-          <div class="app-dropdown-item" id="share-app-only">App only</div>
-          <div class="app-dropdown-item" id="share-with-chat">App with chat</div>
+          <div class="app-dropdown-item" id="share-app-only">Copy link (app only)</div>
+          <div class="app-dropdown-item" id="share-with-chat">Copy link (with chat)</div>
+          <div class="app-dropdown-divider"></div>
+          <div class="app-dropdown-item" id="add-to-community">Add to Community</div>
         </div>
       </div>
       <div class="app-selector">
@@ -695,6 +829,7 @@
     <div class="panel-header">
       <button class="tab-btn active" data-tab="chat">Chat</button>
       <button class="tab-btn" data-tab="settings">Settings</button>
+      <button class="tab-btn" data-tab="community">Community</button>
     </div>
 
     <!-- Chat tab -->
@@ -770,6 +905,29 @@
         </div>
       </div>
     </div>
+
+    <!-- Community tab -->
+    <div class="tab-content" data-tab="community">
+      <div class="community-grid" id="community-grid">
+        <div class="community-empty">
+          <p>Loading community apps...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Submit to Community Modal -->
+  <div id="submit-modal" class="submit-modal" style="display: none;">
+    <div class="submit-modal-content">
+      <h3>Submit to Community</h3>
+      <p>Share your creation with others!</p>
+      <p class="submit-modal-success">✓ Share link copied to clipboard</p>
+      <p>Click below to open a GitHub Issue. Paste your link and tell us about your app.</p>
+      <div class="submit-modal-buttons">
+        <button id="submit-modal-cancel" class="submit-modal-btn">Cancel</button>
+        <a id="submit-modal-open" href="#" target="_blank" class="submit-modal-btn primary">Open GitHub →</a>
+      </div>
+    </div>
   </div>
 
   <script>
@@ -784,6 +942,10 @@
       showCost: 'vibey_show_cost',
       usePlaceholders: 'vibey_use_placeholders'
     };
+
+    // Community settings
+    const REGISTRY_GIST_ID = '0da5574f9ae27f702d5bfcf1494ea465';
+    const GITHUB_REPO = 'martinpllu/vibey';
 
     // App state
     let apps = [];
@@ -1070,6 +1232,213 @@ The user will describe what they want, and you'll generate the complete HTML for
       });
     }
 
+    // Community functions
+    function showSubmitModal() {
+      const app = getCurrentApp();
+      if (!app || !app.code) {
+        alert('No app to share yet!');
+        return;
+      }
+
+      // Copy share URL with chat (silently)
+      const encoded = toUrlSafeBase64(app.code);
+      const nameEncoded = toUrlSafeBase64(app.name || 'Shared App');
+      let url = `${window.location.origin}${window.location.pathname}?code=${encoded}&name=${nameEncoded}`;
+      if (app.messages && app.messages.length > 0) {
+        const chatEncoded = toUrlSafeBase64(JSON.stringify(app.messages));
+        url += `&chat=${chatEncoded}`;
+      }
+      navigator.clipboard.writeText(url);
+
+      // Build GitHub issue URL with template
+      const issueTitle = encodeURIComponent(`[Community] ${app.name || 'My App'}`);
+      const issueBody = encodeURIComponent(`**App Name:** ${app.name || 'My App'}
+
+**Description:** [Brief description of what your app does]
+
+**Share Link:** [Paste your copied link here]
+
+---
+Submitted via Vibey`);
+
+      const issueUrl = `https://github.com/${GITHUB_REPO}/issues/new?title=${issueTitle}&body=${issueBody}&labels=community`;
+      document.getElementById('submit-modal-open').href = issueUrl;
+      document.getElementById('submit-modal').style.display = 'flex';
+    }
+
+    function hideSubmitModal() {
+      document.getElementById('submit-modal').style.display = 'none';
+    }
+
+    let communityLoaded = false;
+
+    function parseCSV(text) {
+      const lines = text.trim().split('\n');
+      if (lines.length < 2) return [];
+
+      const headers = lines[0].split(',').map(h => h.trim());
+      const apps = [];
+
+      for (let i = 1; i < lines.length; i++) {
+        const values = lines[i].split(',').map(v => v.trim());
+        if (values.length >= 2) {
+          const app = {};
+          headers.forEach((header, idx) => {
+            app[header] = values[idx] || '';
+          });
+          apps.push(app);
+        }
+      }
+      return apps;
+    }
+
+    async function loadCommunity() {
+      if (communityLoaded) return; // Only load once per session
+
+      const grid = document.getElementById('community-grid');
+
+      // Check if running from file:// (CORS won't work)
+      if (window.location.protocol === 'file:') {
+        grid.innerHTML = `
+          <div class="community-empty">
+            <p>Community requires HTTP server</p>
+            <p style="font-size: 12px; color: #999;">Run locally with:</p>
+            <code style="display: block; background: #f5f5f5; padding: 8px; border-radius: 4px; font-size: 11px; margin-top: 8px;">python3 -m http.server</code>
+            <p style="font-size: 12px; color: #999; margin-top: 8px;">Or deploy to GitHub Pages</p>
+          </div>`;
+        return;
+      }
+
+      try {
+        // Use GitHub API (has CORS headers) instead of raw URL
+        const response = await fetch(`https://api.github.com/gists/${REGISTRY_GIST_ID}`);
+        if (!response.ok) throw new Error('Failed to fetch registry');
+
+        const gist = await response.json();
+        // Get the first file's content (or look for a specific filename)
+        const files = Object.values(gist.files);
+        if (!files.length) throw new Error('No files in registry gist');
+        const csvText = files[0].content;
+        const apps = parseCSV(csvText);
+
+        if (apps.length === 0) {
+          grid.innerHTML = `
+            <div class="community-empty">
+              <p>No apps shared yet.</p>
+              <p>Be the first! Use Share → Add to Community</p>
+            </div>`;
+          return;
+        }
+
+        grid.innerHTML = apps.map(app => `
+          <div class="community-card" data-url="${escapeHtml(app.url)}">
+            <h4>${escapeHtml(app.name)}</h4>
+            <div class="author">by ${escapeHtml(app.author)}</div>
+            ${app.description || app.decription ? `<p class="description">${escapeHtml(app.description || app.decription)}</p>` : ''}
+          </div>
+        `).join('');
+
+        // Add click handlers
+        grid.querySelectorAll('.community-card').forEach(card => {
+          card.addEventListener('click', () => loadCommunityApp(card));
+        });
+
+        communityLoaded = true;
+
+      } catch (err) {
+        console.error('Community load error:', err);
+        grid.innerHTML = `
+          <div class="community-error">
+            <p>Failed to load community apps</p>
+            <p style="font-size: 12px;">${escapeHtml(err.message)}</p>
+          </div>`;
+      }
+    }
+
+    async function loadCommunityApp(card) {
+      const url = card.dataset.url;
+      const originalContent = card.innerHTML;
+
+      // Show loading state
+      card.style.opacity = '0.6';
+      card.innerHTML += '<div style="font-size: 11px; color: #667eea; margin-top: 8px;">Loading...</div>';
+
+      try {
+        let content;
+
+        // Use GitHub API for gist URLs (has CORS headers)
+        if (url.includes('gist.github.com')) {
+          const match = url.match(/gist\.github\.com\/([^\/]+)\/([a-f0-9]+)/);
+          if (match) {
+            const response = await fetch(`https://api.github.com/gists/${match[2]}`);
+            if (!response.ok) throw new Error('Failed to fetch app');
+            const gist = await response.json();
+            const files = Object.values(gist.files);
+            if (!files.length) throw new Error('No files in gist');
+            content = files[0].content;
+          } else {
+            throw new Error('Invalid gist URL');
+          }
+        } else {
+          // For non-gist URLs, try direct fetch
+          const response = await fetch(url);
+          if (!response.ok) throw new Error('Failed to fetch app');
+          content = await response.text();
+        }
+
+        // Extract Vibey share URL params from the content
+        // Look for ?code= pattern in the content
+        const urlMatch = content.match(/[?&]code=([^&\s"'<>]+)/);
+        if (!urlMatch) throw new Error('No valid Vibey link found');
+
+        const codeParam = urlMatch[1];
+
+        // Try to extract name and chat params too
+        const nameMatch = content.match(/[?&]name=([^&\s"'<>]+)/);
+        const chatMatch = content.match(/[?&]chat=([^&\s"'<>]+)/);
+
+        // Decode the params
+        const code = fromUrlSafeBase64(codeParam);
+
+        let appName = card.querySelector('h4')?.textContent || 'Community App';
+        if (nameMatch) {
+          try {
+            appName = fromUrlSafeBase64(nameMatch[1]);
+          } catch (e) {}
+        }
+
+        let chatMessages = [];
+        if (chatMatch) {
+          try {
+            chatMessages = JSON.parse(fromUrlSafeBase64(chatMatch[1]));
+          } catch (e) {
+            console.error('Failed to parse chat:', e);
+          }
+        }
+
+        // Create new app from community content
+        const newApp = {
+          id: generateId(),
+          name: `${appName} (${generateShortId()})`,
+          code: code,
+          messages: chatMessages
+        };
+
+        apps.push(newApp);
+        saveApps();
+        switchToApp(newApp.id);
+
+        // Switch to chat tab to show the loaded app
+        switchTab('chat');
+
+      } catch (err) {
+        console.error('Failed to load community app:', err);
+        card.innerHTML = originalContent;
+        card.style.opacity = '1';
+        alert('Failed to load app: ' + err.message);
+      }
+    }
+
     function generateShortId() {
       // Generate a short 4-character alphanumeric ID
       return Math.random().toString(36).substr(2, 4);
@@ -1277,6 +1646,15 @@ The user will describe what they want, and you'll generate the complete HTML for
         shareApp(true);
         shareDropdown.classList.remove('open');
       });
+      document.getElementById('add-to-community').addEventListener('click', () => {
+        showSubmitModal();
+        shareDropdown.classList.remove('open');
+      });
+      document.getElementById('submit-modal-cancel').addEventListener('click', hideSubmitModal);
+      // Close modal when clicking outside
+      document.getElementById('submit-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'submit-modal') hideSubmitModal();
+      });
       appMenuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         appDropdown.classList.toggle('open');
@@ -1312,6 +1690,11 @@ The user will describe what they want, and you'll generate the complete HTML for
     function switchTab(tabName) {
       tabBtns.forEach(btn => btn.classList.toggle('active', btn.dataset.tab === tabName));
       tabContents.forEach(content => content.classList.toggle('active', content.dataset.tab === tabName));
+
+      // Load community when switching to community tab
+      if (tabName === 'community') {
+        loadCommunity();
+      }
     }
 
     function saveSettings() {
@@ -1352,6 +1735,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       const msg = { role, content };
       if (options.usage) msg.usage = options.usage;
       if (options.webSearch) msg._webSearch = true;
+      if (options.model) msg.model = options.model;
       messages.push(msg);
       // Save to current app
       const app = getCurrentApp();
@@ -1381,6 +1765,16 @@ The user will describe what they want, and you'll generate the complete HTML for
           : msg.content;
 
         let usageHtml = '';
+        // Format model name for display (remove provider prefix, clean up)
+        const formatModelName = (model) => {
+          if (!model) return '';
+          // Remove :online suffix if present
+          let name = model.replace(/:online$/, '');
+          // Remove provider prefix (e.g., "google/" or "anthropic/")
+          name = name.replace(/^[^/]+\//, '');
+          return name;
+        };
+
         if (msg.role === 'assistant' && msg.usage && showCostToggle.checked) {
           const { prompt_tokens, completion_tokens, total_cost, cache_read_tokens, cache_write_tokens } = msg.usage;
           const costStr = total_cost != null ? `$${total_cost.toFixed(4)}` : 'N/A';
@@ -1397,8 +1791,12 @@ The user will describe what they want, and you'll generate the complete HTML for
           // Build web search info string
           const webSearchStr = msg._webSearch ? '<span class="web-search-info">Web search</span>' : '';
 
+          // Build model info string
+          const modelStr = msg.model ? `<span class="model-info">${escapeHtml(formatModelName(msg.model))}</span>` : '';
+
           const timeStr = msg.usage.time ? `${msg.usage.time}s` : '';
           usageHtml = `<div class="message-usage">
+            ${modelStr}
             ${timeStr ? `<span>${timeStr}</span>` : ''}
             <span>In: ${prompt_tokens?.toLocaleString() || '?'}</span>
             <span>Out: ${completion_tokens?.toLocaleString() || '?'}</span>
@@ -1406,6 +1804,9 @@ The user will describe what they want, and you'll generate the complete HTML for
             ${webSearchStr}
             <span>Cost: ${costStr}</span>
           </div>`;
+        } else if (msg.role === 'assistant' && msg.model) {
+          // Show model even when cost display is off
+          usageHtml = `<div class="message-usage"><span class="model-info">${escapeHtml(formatModelName(msg.model))}</span></div>`;
         }
 
         return `<div class="message ${msg.role}">${escapeHtml(displayContent)}${usageHtml}</div>`;
@@ -1779,7 +2180,7 @@ The user will describe what they want, and you'll generate the complete HTML for
           updatePreview(htmlCode);
         }
 
-        addMessage('assistant', assistantMessage, { usage, webSearch: useWebSearch });
+        addMessage('assistant', assistantMessage, { usage, webSearch: useWebSearch, model: effectiveModel });
 
       } catch (error) {
         addMessage('error', `Error: ${error.message}`);
