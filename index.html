@@ -367,6 +367,33 @@
       cursor: pointer;
     }
 
+    .info-icon {
+      color: #667eea;
+      cursor: help;
+      font-size: 14px;
+      margin-left: 4px;
+    }
+
+    .info-tooltip {
+      display: none;
+      background: #1a1a2e;
+      color: #e0e0e0;
+      padding: 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      line-height: 1.5;
+      margin-top: 8px;
+      border: 1px solid #333;
+    }
+
+    .info-tooltip.visible {
+      display: block;
+    }
+
+    .info-tooltip a {
+      color: #667eea;
+    }
+
     .message.system {
       align-self: center;
       background: #e8f4f8;
@@ -467,6 +494,16 @@
 
     .toolbar-btn.error-btn:hover {
       background: #fdd;
+    }
+
+    .toolbar-btn.log-btn {
+      background: #e8f4f8;
+      border-color: #b8d4e3;
+      color: #0077b6;
+    }
+
+    .toolbar-btn.log-btn:hover {
+      background: #d0ebf4;
     }
 
     .toolbar-btn.web-search-active {
@@ -672,6 +709,7 @@
       </div>
       <div class="chat-toolbar">
         <button class="toolbar-btn error-btn" id="fix-errors-btn" style="display: none;">Fix Errors (0)</button>
+        <button class="toolbar-btn log-btn" id="send-logs-btn" style="display: none;">Send Logs (0)</button>
         <button class="toolbar-btn" id="screenshot-btn">Attach Screenshot</button>
         <button class="toolbar-btn" id="web-search-btn" title="Enable web search for this message ($0.02/request)">Web Search</button>
       </div>
@@ -715,6 +753,19 @@
           </label>
         </div>
         <div class="form-group">
+          <label class="toggle-label">
+            <input type="checkbox" id="use-placeholders-toggle">
+            <span>Use placeholders for old code</span>
+            <span class="info-icon" id="placeholder-info">ⓘ</span>
+          </label>
+          <div class="info-tooltip" id="placeholder-tooltip">
+            <strong>What this does:</strong> Replaces old code versions with placeholders, sending only the latest code to the model.<br><br>
+            <strong>Trade-off:</strong> Reduces token count but breaks prompt caching. Models with caching (most providers) benefit more from sending full history.<br><br>
+            <strong>Use this for:</strong> Models without caching support, or very long conversations where token limits are a concern.<br><br>
+            <a href="https://openrouter.ai/docs/guides/best-practices/prompt-caching" target="_blank">Check caching support →</a>
+          </div>
+        </div>
+        <div class="form-group">
           <button id="clear-code-btn" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Code & Chat</button>
         </div>
       </div>
@@ -730,7 +781,8 @@
       model: 'vibey_model',
       customModel: 'vibey_custom_model',
       panelCollapsed: 'vibey_panel_collapsed',
-      showCost: 'vibey_show_cost'
+      showCost: 'vibey_show_cost',
+      usePlaceholders: 'vibey_use_placeholders'
     };
 
     // App state
@@ -743,7 +795,7 @@
       { id: 'anthropic/claude-opus-4.5', name: 'Claude Opus 4.5' }
     ];
 
-    // Minimal bridge script - just captures errors from preview iframe
+    // Bridge script - captures errors and logs from preview iframe
     const VIBEY_BRIDGE_SCRIPT = `<script>
 (function() {
   if (window.__vibeyBridge) return;
@@ -756,8 +808,27 @@
   });
   var origError = console.error;
   console.error = function() {
-    parent.postMessage({ type: 'vibey-error', message: [].slice.call(arguments).join(' ') }, '*');
+    var msg = [].slice.call(arguments).join(' ');
+    if (!msg.startsWith('[Vibey]')) {
+      parent.postMessage({ type: 'vibey-error', message: msg }, '*');
+    }
     origError.apply(console, arguments);
+  };
+  var origLog = console.log;
+  console.log = function() {
+    var msg = [].slice.call(arguments).join(' ');
+    if (!msg.startsWith('[Vibey]')) {
+      parent.postMessage({ type: 'vibey-log', level: 'log', message: msg }, '*');
+    }
+    origLog.apply(console, arguments);
+  };
+  var origWarn = console.warn;
+  console.warn = function() {
+    var msg = [].slice.call(arguments).join(' ');
+    if (!msg.startsWith('[Vibey]')) {
+      parent.postMessage({ type: 'vibey-log', level: 'warn', message: msg }, '*');
+    }
+    origWarn.apply(console, arguments);
   };
 })();
 <\/script>`;
@@ -771,12 +842,13 @@ IMPORTANT RULES:
 3. Include all CSS in a <style> tag and all JavaScript in a <script> tag
 4. Do not use external dependencies unless they can be loaded from a CDN
 5. Make the app visually appealing with good styling
-6. Return ONLY the HTML code inside a markdown code block (triple backticks with html)
-7. Do not include any explanation before or after the code block - just the code
+6. Return the HTML code inside a markdown code block (triple backticks with html)
+7. You may include a brief message before or after the code block ONLY if it adds genuine value (e.g. noting a non-obvious limitation, asking a clarifying question, or explaining a design tradeoff). Do NOT include generic statements like "Here's the code" or "I've updated the code" - these add no value. When in doubt, just return the code.
 
 DEBUGGING:
-- Users may share browser console errors or screenshots with you
+- Users may share browser console errors, console logs, or screenshots with you
 - When you see [Browser Errors] in a message, analyze and fix the issues in your next code update
+- When you see [Console Logs] in a message, these are console.log/warn outputs from the running app that the user is sharing for debugging context
 - Common errors: undefined variables/functions, syntax errors, failed network requests
 
 The user will describe what they want, and you'll generate the complete HTML for it.`;
@@ -785,6 +857,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     let messages = [];
     let isLoading = false;
     let capturedErrors = [];
+    let capturedLogs = [];
     let webSearchEnabled = false;
 
     // DOM elements
@@ -800,6 +873,9 @@ The user will describe what they want, and you'll generate the complete HTML for
     const previewFrame = document.getElementById('preview-frame');
     const clearCodeBtn = document.getElementById('clear-code-btn');
     const showCostToggle = document.getElementById('show-cost-toggle');
+    const usePlaceholdersToggle = document.getElementById('use-placeholders-toggle');
+    const placeholderInfo = document.getElementById('placeholder-info');
+    const placeholderTooltip = document.getElementById('placeholder-tooltip');
     const webSearchBtn = document.getElementById('web-search-btn');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -1135,6 +1211,10 @@ The user will describe what they want, and you'll generate the complete HTML for
       const showCost = localStorage.getItem(STORAGE_KEYS.showCost);
       showCostToggle.checked = showCost === null ? true : showCost === 'true';
 
+      // Load use placeholders setting (default to false)
+      const usePlaceholders = localStorage.getItem(STORAGE_KEYS.usePlaceholders);
+      usePlaceholdersToggle.checked = usePlaceholders === 'true';
+
       // Event listeners
       toggle.addEventListener('click', togglePanel);
       sendBtn.addEventListener('click', sendMessage);
@@ -1147,17 +1227,29 @@ The user will describe what they want, and you'll generate the complete HTML for
         }
       });
 
-      // Listen for errors from preview iframe
+      // Listen for errors and logs from preview iframe
       window.addEventListener('message', (e) => {
-        if (e.source === previewFrame?.contentWindow && e.data?.type === 'vibey-error') {
+        if (e.source !== previewFrame?.contentWindow) return;
+        if (e.data?.type === 'vibey-error') {
           capturedErrors.push({ message: e.data.message, line: e.data.line });
           updateErrorButton();
+        } else if (e.data?.type === 'vibey-log') {
+          capturedLogs.push({ level: e.data.level, message: e.data.message });
+          updateLogButton();
         }
       });
 
       showCostToggle.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.showCost, showCostToggle.checked);
         renderMessages();
+      });
+      usePlaceholdersToggle.addEventListener('change', () => {
+        localStorage.setItem(STORAGE_KEYS.usePlaceholders, usePlaceholdersToggle.checked);
+      });
+      placeholderInfo.addEventListener('click', (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        placeholderTooltip.classList.toggle('visible');
       });
       apiKeyInput.addEventListener('change', saveSettings);
       modelSelect.addEventListener('change', handleModelChange);
@@ -1166,6 +1258,7 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       // Toolbar buttons
       document.getElementById('fix-errors-btn').addEventListener('click', sendErrorsToAgent);
+      document.getElementById('send-logs-btn').addEventListener('click', sendLogsToAgent);
       document.getElementById('screenshot-btn').addEventListener('click', captureScreenshot);
       webSearchBtn.addEventListener('click', toggleWebSearch);
 
@@ -1343,11 +1436,13 @@ The user will describe what they want, and you'll generate the complete HTML for
     }
 
     function updatePreview(code) {
-      // Clear captured errors when new code is loaded
+      // Clear captured errors and logs when new code is loaded
       capturedErrors = [];
+      capturedLogs = [];
       updateErrorButton();
+      updateLogButton();
 
-      // Inject bridge script to capture errors
+      // Inject bridge script to capture errors and logs
       let injectedCode = code;
       if (code.includes('</body>')) {
         injectedCode = code.replace('</body>', VIBEY_BRIDGE_SCRIPT + '</body>');
@@ -1384,6 +1479,26 @@ The user will describe what they want, and you'll generate the complete HTML for
       chatInput.value = msg;
       capturedErrors = [];
       updateErrorButton();
+      sendMessage();
+    }
+
+    // Update log button badge
+    function updateLogButton() {
+      const btn = document.getElementById('send-logs-btn');
+      if (btn) {
+        btn.style.display = capturedLogs.length > 0 ? 'flex' : 'none';
+        btn.textContent = `Send Logs (${capturedLogs.length})`;
+      }
+    }
+
+    // Send logs to agent
+    function sendLogsToAgent() {
+      if (capturedLogs.length === 0) return;
+      const logList = capturedLogs.map(l => `- [${l.level}] ${l.message}`).join('\n');
+      const msg = `[Console Logs]\n${logList}`;
+      chatInput.value = msg;
+      capturedLogs = [];
+      updateLogButton();
       sendMessage();
     }
 
@@ -1534,20 +1649,46 @@ The user will describe what they want, and you'll generate the complete HTML for
         const isAnthropicModel = model.startsWith('anthropic/');
         const conversationMessages = messages.filter(m => m.role !== 'system' && m.role !== 'error');
 
+        // Find the last assistant message that contains code (only needed if placeholders enabled)
+        const usePlaceholders = usePlaceholdersToggle.checked;
+        let lastCodeIndex = -1;
+        if (usePlaceholders) {
+          for (let i = conversationMessages.length - 1; i >= 0; i--) {
+            if (conversationMessages[i].role === 'assistant' && /```html[\s\S]*?```/.test(conversationMessages[i].content)) {
+              lastCodeIndex = i;
+              break;
+            }
+          }
+        }
+
+        // Helper to strip code from old assistant messages, preserving any message text
+        const getMessageContent = (m, idx) => {
+          if (usePlaceholders && m.role === 'assistant' && idx < lastCodeIndex && /```html[\s\S]*?```/.test(m.content)) {
+            // Replace code block with placeholder, keep any surrounding text
+            return m.content.replace(/```html[\s\S]*?```/, '[Previous code version omitted]');
+          }
+          return m.content;
+        };
+
         // Helper to build message content (with optional screenshot)
-        const buildContent = (m, addCacheControl = false) => {
+        // For Anthropic, useArrayFormat ensures consistent structure for cache prefix matching
+        const buildContent = (m, idx, addCacheControl = false, useArrayFormat = false) => {
+          const content = getMessageContent(m, idx);
           if (m._screenshot) {
             // Multi-part message with image
             const parts = [
-              { type: 'text', text: m.content, ...(addCacheControl && { cache_control: { type: 'ephemeral' } }) },
+              { type: 'text', text: content, ...(addCacheControl && { cache_control: { type: 'ephemeral' } }) },
               { type: 'image_url', image_url: { url: m._screenshot } }
             ];
             return parts;
           }
           if (addCacheControl) {
-            return [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }];
+            return [{ type: 'text', text: content, cache_control: { type: 'ephemeral' } }];
           }
-          return m.content;
+          if (useArrayFormat) {
+            return [{ type: 'text', text: content }];
+          }
+          return content;
         };
 
         // Build messages array with optional caching for Anthropic models
@@ -1563,25 +1704,34 @@ The user will describe what they want, and you'll generate the complete HTML for
               }]
             },
             ...conversationMessages.map((m, idx) => {
-              const isLastAssistant = m.role === 'assistant' &&
-                (idx === conversationMessages.length - 1 ||
-                 (idx === conversationMessages.length - 2 && conversationMessages[conversationMessages.length - 1].role === 'user'));
-
+              // Only cache_control on system prompt - keep messages simple
               return {
                 role: m.role,
-                content: buildContent(m, isLastAssistant)
+                content: buildContent(m, idx, false, false)
               };
             })
           ];
         } else {
           apiMessages = [
             { role: 'system', content: SYSTEM_PROMPT },
-            ...conversationMessages.map(m => ({ role: m.role, content: buildContent(m) }))
+            ...conversationMessages.map((m, idx) => ({ role: m.role, content: buildContent(m, idx) }))
           ];
         }
 
         // Add :online suffix if web search was enabled for this request
         const effectiveModel = useWebSearch ? `${model}:online` : model;
+
+        // Debug: log API messages with truncated content
+        const debugMessages = apiMessages.map(m => {
+          const truncate = (s) => typeof s === 'string' && s.length > 100 ? s.slice(0, 100) + '...[' + s.length + ' chars]' : s;
+          const truncateContent = (c) => {
+            if (typeof c === 'string') return truncate(c);
+            if (Array.isArray(c)) return c.map(part => ({ ...part, text: part.text ? truncate(part.text) : undefined }));
+            return c;
+          };
+          return { ...m, content: truncateContent(m.content) };
+        });
+        console.log('[Vibey] API messages:', JSON.stringify(debugMessages, null, 2));
 
         const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
           method: 'POST',
@@ -1621,7 +1771,7 @@ The user will describe what they want, and you'll generate the complete HTML for
           cache_write_tokens: data.usage?.cache_creation_input_tokens ?? 0,
           time: elapsed
         };
-        console.log('OpenRouter response:', data);
+        console.log('[Vibey] OpenRouter response:', data);
 
         // Extract and apply code
         const htmlCode = extractHtmlCode(assistantMessage);
