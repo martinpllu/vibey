@@ -373,6 +373,20 @@
       padding: 12px;
       border-top: 1px solid #e9ecef;
       display: flex;
+      align-items: flex-end;
+      gap: 8px;
+    }
+
+    .input-wrapper {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .input-row {
+      display: flex;
+      align-items: center;
       gap: 8px;
     }
 
@@ -411,6 +425,94 @@
     .send-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+    }
+
+    /* Toolbar buttons */
+    .chat-toolbar {
+      display: flex;
+      gap: 8px;
+      padding: 8px 12px 0;
+    }
+
+    .toolbar-btn {
+      padding: 6px 12px;
+      border: 1px solid #dee2e6;
+      border-radius: 6px;
+      background: white;
+      font-size: 12px;
+      cursor: pointer;
+      transition: background 0.2s, border-color 0.2s;
+    }
+
+    .toolbar-btn:hover {
+      background: #f8f9fa;
+      border-color: #adb5bd;
+    }
+
+    .toolbar-btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .toolbar-btn.error-btn {
+      background: #fee;
+      border-color: #fcc;
+      color: #c00;
+    }
+
+    .toolbar-btn.error-btn:hover {
+      background: #fdd;
+    }
+
+    #attachment-indicator {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 4px 8px;
+      background: #e8f4f8;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #0077b6;
+      cursor: pointer;
+      white-space: nowrap;
+    }
+
+    #attachment-indicator:hover {
+      background: #d0ebf4;
+    }
+
+    #attachment-indicator .remove-btn {
+      background: none;
+      border: none;
+      color: #0077b6;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 0;
+      margin-left: 2px;
+      line-height: 1;
+    }
+
+    #attachment-indicator .remove-btn:hover {
+      color: #c00;
+    }
+
+    /* Screenshot preview modal */
+    #screenshot-modal {
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 10002;
+      cursor: pointer;
+    }
+
+    #screenshot-modal img {
+      max-width: 90%;
+      max-height: 90%;
+      border-radius: 8px;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
     }
 
     /* Loading indicator */
@@ -553,8 +655,14 @@
           <p>Describe what you want to build and I'll generate the code!</p>
         </div>
       </div>
+      <div class="chat-toolbar">
+        <button class="toolbar-btn error-btn" id="fix-errors-btn" style="display: none;">Fix Errors (0)</button>
+        <button class="toolbar-btn" id="screenshot-btn">Attach Screenshot</button>
+      </div>
       <div class="chat-input-area">
-        <textarea id="chat-input" placeholder="What do you want to build?" rows="1"></textarea>
+        <div class="input-wrapper">
+          <textarea id="chat-input" placeholder="What do you want to build?" rows="1"></textarea>
+        </div>
         <button class="send-btn" id="send-btn">Send</button>
       </div>
     </div>
@@ -625,6 +733,25 @@
       { id: 'anthropic/claude-opus-4.5', name: 'Claude Opus 4.5' }
     ];
 
+    // Minimal bridge script - just captures errors from preview iframe
+    const VIBEY_BRIDGE_SCRIPT = `<script>
+(function() {
+  if (window.__vibeyBridge) return;
+  window.__vibeyBridge = true;
+  window.onerror = function(msg, src, line, col) {
+    parent.postMessage({ type: 'vibey-error', message: String(msg), line: line }, '*');
+  };
+  window.addEventListener('unhandledrejection', function(e) {
+    parent.postMessage({ type: 'vibey-error', message: 'Promise: ' + String(e.reason) }, '*');
+  });
+  var origError = console.error;
+  console.error = function() {
+    parent.postMessage({ type: 'vibey-error', message: [].slice.call(arguments).join(' ') }, '*');
+    origError.apply(console, arguments);
+  };
+})();
+<\/script>`;
+
     // System prompt for the LLM
     const SYSTEM_PROMPT = `You are a helpful assistant that generates single-page HTML applications.
 
@@ -637,11 +764,17 @@ IMPORTANT RULES:
 6. Return ONLY the HTML code inside a markdown code block (triple backticks with html)
 7. Do not include any explanation before or after the code block - just the code
 
+DEBUGGING:
+- Users may share browser console errors or screenshots with you
+- When you see [Browser Errors] in a message, analyze and fix the issues in your next code update
+- Common errors: undefined variables/functions, syntax errors, failed network requests
+
 The user will describe what they want, and you'll generate the complete HTML for it.`;
 
     // State
     let messages = [];
     let isLoading = false;
+    let capturedErrors = [];
 
     // DOM elements
     const panel = document.getElementById('vibey-panel');
@@ -1002,6 +1135,15 @@ The user will describe what they want, and you'll generate the complete HTML for
           togglePanel();
         }
       });
+
+      // Listen for errors from preview iframe
+      window.addEventListener('message', (e) => {
+        if (e.source === previewFrame?.contentWindow && e.data?.type === 'vibey-error') {
+          capturedErrors.push({ message: e.data.message, line: e.data.line });
+          updateErrorButton();
+        }
+      });
+
       showCostToggle.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.showCost, showCostToggle.checked);
         renderMessages();
@@ -1010,6 +1152,10 @@ The user will describe what they want, and you'll generate the complete HTML for
       modelSelect.addEventListener('change', handleModelChange);
       customModelInput.addEventListener('change', saveSettings);
       clearCodeBtn.addEventListener('click', clearCode);
+
+      // Toolbar buttons
+      document.getElementById('fix-errors-btn').addEventListener('click', sendErrorsToAgent);
+      document.getElementById('screenshot-btn').addEventListener('click', captureScreenshot);
 
       // App management
       appNameInput.addEventListener('change', () => renameCurrentApp(appNameInput.value));
@@ -1175,14 +1321,135 @@ The user will describe what they want, and you'll generate the complete HTML for
     }
 
     function updatePreview(code) {
-      previewFrame.srcdoc = code;
-      // Save to current app
+      // Clear captured errors when new code is loaded
+      capturedErrors = [];
+      updateErrorButton();
+
+      // Inject bridge script to capture errors
+      let injectedCode = code;
+      if (code.includes('</body>')) {
+        injectedCode = code.replace('</body>', VIBEY_BRIDGE_SCRIPT + '</body>');
+      } else if (code.includes('</html>')) {
+        injectedCode = code.replace('</html>', VIBEY_BRIDGE_SCRIPT + '</html>');
+      } else {
+        injectedCode = code + VIBEY_BRIDGE_SCRIPT;
+      }
+
+      previewFrame.srcdoc = injectedCode;
+
+      // Save original code (without bridge)
       const app = getCurrentApp();
       if (app) {
         app.code = code;
         saveApps();
       }
     }
+
+    // Update error button badge
+    function updateErrorButton() {
+      const btn = document.getElementById('fix-errors-btn');
+      if (btn) {
+        btn.style.display = capturedErrors.length > 0 ? 'flex' : 'none';
+        btn.textContent = `Fix Errors (${capturedErrors.length})`;
+      }
+    }
+
+    // Send errors to agent
+    function sendErrorsToAgent() {
+      if (capturedErrors.length === 0) return;
+      const errorList = capturedErrors.map(e => `- ${e.message}${e.line ? ` (line ${e.line})` : ''}`).join('\n');
+      const msg = `[Browser Errors]\n${errorList}\n\nPlease fix these errors.`;
+      chatInput.value = msg;
+      capturedErrors = [];
+      updateErrorButton();
+      sendMessage();
+    }
+
+    // Pending screenshot attachment
+    let pendingScreenshot = null;
+
+    // Capture screenshot and attach it (don't send immediately)
+    async function captureScreenshot() {
+      const btn = document.getElementById('screenshot-btn');
+      if (btn) btn.disabled = true;
+
+      try {
+        // Load html2canvas on demand
+        if (!window.html2canvas) {
+          await new Promise((resolve, reject) => {
+            const script = document.createElement('script');
+            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+          });
+        }
+
+        const iframeDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+        const viewportWidth = previewFrame.clientWidth;
+        const viewportHeight = previewFrame.clientHeight;
+
+        const canvas = await html2canvas(iframeDoc.body, {
+          useCORS: true,
+          scale: 0.5,
+          logging: false,
+          width: viewportWidth,
+          height: viewportHeight,
+          windowWidth: viewportWidth,
+          windowHeight: viewportHeight,
+          x: iframeDoc.documentElement.scrollLeft || 0,
+          y: iframeDoc.documentElement.scrollTop || 0
+        });
+        pendingScreenshot = canvas.toDataURL('image/jpeg', 0.7);
+        updateAttachmentIndicator();
+        chatInput.focus();
+      } catch (err) {
+        alert('Failed to capture screenshot: ' + err.message);
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    }
+
+    // Show/hide attachment indicator
+    function updateAttachmentIndicator() {
+      let indicator = document.getElementById('attachment-indicator');
+      if (pendingScreenshot) {
+        if (!indicator) {
+          indicator = document.createElement('div');
+          indicator.id = 'attachment-indicator';
+          indicator.innerHTML = '📷 <span>Screenshot</span><button class="remove-btn" onclick="event.stopPropagation(); clearScreenshot();">&times;</button>';
+          indicator.onclick = () => showScreenshotModal();
+          document.querySelector('.input-wrapper').insertBefore(indicator, chatInput);
+        }
+      } else if (indicator) {
+        indicator.remove();
+      }
+    }
+
+    // Show screenshot preview modal
+    function showScreenshotModal() {
+      if (!pendingScreenshot) return;
+      const modal = document.createElement('div');
+      modal.id = 'screenshot-modal';
+      modal.innerHTML = `<img src="${pendingScreenshot}" alt="Screenshot preview">`;
+      modal.onclick = () => modal.remove();
+      document.body.appendChild(modal);
+
+      // Close on escape
+      const closeOnEscape = (e) => {
+        if (e.key === 'Escape') {
+          modal.remove();
+          document.removeEventListener('keydown', closeOnEscape);
+        }
+      };
+      document.addEventListener('keydown', closeOnEscape);
+    }
+
+    // Clear pending screenshot (global for onclick)
+    window.clearScreenshot = function() {
+      pendingScreenshot = null;
+      updateAttachmentIndicator();
+    };
 
     function clearCode() {
       if (confirm('This will clear all generated code and chat history for this app. Continue?')) {
@@ -1209,8 +1476,18 @@ The user will describe what they want, and you'll generate the complete HTML for
         return;
       }
 
-      // Add user message
-      addMessage('user', content);
+      // Capture screenshot attachment before clearing
+      const screenshot = pendingScreenshot;
+      pendingScreenshot = null;
+      updateAttachmentIndicator();
+
+      // Add user message (with attachment indicator in UI)
+      const displayContent = screenshot ? `[Screenshot attached]\n${content}` : content;
+      addMessage('user', displayContent);
+      // Store screenshot data for API
+      if (screenshot) {
+        messages[messages.length - 1]._screenshot = screenshot;
+      }
       chatInput.value = '';
       chatInput.style.height = 'auto';
 
@@ -1224,6 +1501,22 @@ The user will describe what they want, and you'll generate the complete HTML for
         const model = getSelectedModel();
         const isAnthropicModel = model.startsWith('anthropic/');
         const conversationMessages = messages.filter(m => m.role !== 'system' && m.role !== 'error');
+
+        // Helper to build message content (with optional screenshot)
+        const buildContent = (m, addCacheControl = false) => {
+          if (m._screenshot) {
+            // Multi-part message with image
+            const parts = [
+              { type: 'text', text: m.content, ...(addCacheControl && { cache_control: { type: 'ephemeral' } }) },
+              { type: 'image_url', image_url: { url: m._screenshot } }
+            ];
+            return parts;
+          }
+          if (addCacheControl) {
+            return [{ type: 'text', text: m.content, cache_control: { type: 'ephemeral' } }];
+          }
+          return m.content;
+        };
 
         // Build messages array with optional caching for Anthropic models
         let apiMessages;
@@ -1242,23 +1535,16 @@ The user will describe what they want, and you'll generate the complete HTML for
                 (idx === conversationMessages.length - 1 ||
                  (idx === conversationMessages.length - 2 && conversationMessages[conversationMessages.length - 1].role === 'user'));
 
-              if (isLastAssistant) {
-                return {
-                  role: m.role,
-                  content: [{
-                    type: 'text',
-                    text: m.content,
-                    cache_control: { type: 'ephemeral' }
-                  }]
-                };
-              }
-              return { role: m.role, content: m.content };
+              return {
+                role: m.role,
+                content: buildContent(m, isLastAssistant)
+              };
             })
           ];
         } else {
           apiMessages = [
             { role: 'system', content: SYSTEM_PROMPT },
-            ...conversationMessages.map(m => ({ role: m.role, content: m.content }))
+            ...conversationMessages.map(m => ({ role: m.role, content: buildContent(m) }))
           ];
         }
 
