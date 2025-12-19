@@ -2,13 +2,28 @@
 
 A self-contained HTML file for vibe coding single-page apps through chat.
 
-Enter your API key, describe what you want, and iterate on your app in real-time. The generated code renders in an iframe while you chat.
+Describe what you want, and iterate on your app in real-time. The generated code renders in an iframe while you chat.
 
 **Features:**
-- Anthropic direct API with prompt caching (recommended)
-- OpenRouter support for multiple models
+- Sign in with OpenRouter (OAuth)
+- Multiple AI models via OpenRouter (Claude, GPT-4, Gemini, etc.)
 - Multiple apps with separate chat histories
 - Token usage and cost tracking
 - Everything persists in localStorage
 
-**Usage:** Open `index.html` in a browser. Press `Escape` to toggle the panel.
+## Running Locally
+
+Run a local web server:
+
+```bash
+cd vibey
+python3 -m http.server 8000
+```
+
+Then open http://localhost:8000 in your browser.
+
+## Usage
+
+1. Click "Sign in with OpenRouter"
+2. Describe what you want to build in the chat
+3. Press `Escape` to toggle the panel
