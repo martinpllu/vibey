@@ -931,6 +931,19 @@
     </div>
   </div>
 
+  <!-- Import App Modal -->
+  <div id="import-modal" class="submit-modal" style="display: none;">
+    <div class="submit-modal-content" style="max-width: 500px;">
+      <h3>Import App</h3>
+      <p>Paste HTML exported from Vibey</p>
+      <textarea id="import-textarea" placeholder="Paste your exported HTML here..." style="width: 100%; height: 200px; margin: 12px 0; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
+      <div class="submit-modal-buttons">
+        <button id="import-modal-cancel" class="submit-modal-btn">Cancel</button>
+        <button id="import-modal-confirm" class="submit-modal-btn primary">Import</button>
+      </div>
+    </div>
+  </div>
+
   <script>
     // Storage keys
     const STORAGE_KEYS = {
@@ -1214,11 +1227,24 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       // Embed chat and metadata as a comment at the end
       if (includeChat && app.messages && app.messages.length > 0) {
+        // Exclude code field from messages - the final code is already in the HTML
+        // Also handle legacy messages that have code embedded in content
+        const strippedMessages = app.messages.map(m => {
+          if (m.role === 'assistant') {
+            const { code, ...rest } = m;
+            // For legacy messages, also strip embedded code from content
+            if (code === undefined && rest.content) {
+              rest.content = rest.content.replace(/```html[\s\S]*?```/g, '').trim() || 'Updated';
+            }
+            return rest;
+          }
+          return m;
+        });
         const vibeyData = {
           name: app.name || 'Shared App',
-          messages: app.messages
+          messages: strippedMessages
         };
-        html += `\n<!--VIBEY_DATA\n${JSON.stringify(vibeyData)}\nVIBEY_DATA-->`;
+        html += `\n<!--VIBEY_DATA\n${JSON.stringify(vibeyData, null, 2)}\nVIBEY_DATA-->`;
       }
 
       return html;
@@ -1520,6 +1546,9 @@ Submitted via Vibey`);
         <div class="app-dropdown-item new-app" id="new-app-btn">
           <span>+ New App</span>
         </div>
+        <div class="app-dropdown-item new-app" id="import-app-btn">
+          <span>↓ Import App</span>
+        </div>
       `;
 
       // Add click handlers
@@ -1543,6 +1572,58 @@ Submitted via Vibey`);
         createNewApp();
         appDropdown.classList.remove('open');
       });
+
+      document.getElementById('import-app-btn')?.addEventListener('click', () => {
+        showImportModal();
+        appDropdown.classList.remove('open');
+      });
+    }
+
+    function showImportModal() {
+      document.getElementById('import-textarea').value = '';
+      document.getElementById('import-modal').style.display = 'flex';
+    }
+
+    function hideImportModal() {
+      document.getElementById('import-modal').style.display = 'none';
+    }
+
+    function importApp() {
+      const html = document.getElementById('import-textarea').value.trim();
+      if (!html) {
+        alert('Please paste HTML to import');
+        return;
+      }
+
+      // Parse VIBEY_DATA if present
+      let code = html;
+      let chatMessages = [];
+      let appName = 'Imported App';
+
+      const vibeyMatch = html.match(/<!--VIBEY_DATA\n([\s\S]*?)\nVIBEY_DATA-->/);
+      if (vibeyMatch) {
+        try {
+          const vibeyData = JSON.parse(vibeyMatch[1]);
+          if (vibeyData.messages) chatMessages = vibeyData.messages;
+          if (vibeyData.name) appName = vibeyData.name;
+        } catch (e) {
+          console.error('Failed to parse VIBEY_DATA:', e);
+        }
+        code = html.replace(/\n<!--VIBEY_DATA\n[\s\S]*?\nVIBEY_DATA-->/, '');
+      }
+
+      // Create new app
+      const newApp = {
+        id: generateId(),
+        name: `${appName} (${generateShortId()})`,
+        code: code,
+        messages: chatMessages
+      };
+
+      apps.push(newApp);
+      saveApps();
+      switchToApp(newApp.id);
+      hideImportModal();
     }
 
     // Initialize
@@ -1667,6 +1748,12 @@ Submitted via Vibey`);
       document.getElementById('submit-modal').addEventListener('click', (e) => {
         if (e.target.id === 'submit-modal') hideSubmitModal();
       });
+      // Import modal
+      document.getElementById('import-modal-cancel').addEventListener('click', hideImportModal);
+      document.getElementById('import-modal-confirm').addEventListener('click', importApp);
+      document.getElementById('import-modal').addEventListener('click', (e) => {
+        if (e.target.id === 'import-modal') hideImportModal();
+      });
       appMenuBtn.addEventListener('click', (e) => {
         e.stopPropagation();
         appDropdown.classList.toggle('open');
@@ -1748,6 +1835,7 @@ Submitted via Vibey`);
       if (options.usage) msg.usage = options.usage;
       if (options.webSearch) msg._webSearch = true;
       if (options.model) msg.model = options.model;
+      if (options.code) msg.code = options.code;
       messages.push(msg);
       // Save to current app
       const app = getCurrentApp();
@@ -1772,8 +1860,10 @@ Submitted via Vibey`);
       }
 
       chatMessages.innerHTML = messages.map(msg => {
+        // For assistant messages: use content directly if code is separate,
+        // otherwise strip code blocks for backwards compatibility with old messages
         const displayContent = msg.role === 'assistant'
-          ? msg.content.replace(/```html[\s\S]*?```/g, '').trim() || '✓ Updated'
+          ? (msg.code !== undefined ? msg.content : msg.content.replace(/```html[\s\S]*?```/g, '').trim()) || 'Updated'
           : msg.content;
 
         let usageHtml = '';
@@ -2067,20 +2157,36 @@ Submitted via Vibey`);
         let lastCodeIndex = -1;
         if (usePlaceholders) {
           for (let i = conversationMessages.length - 1; i >= 0; i--) {
-            if (conversationMessages[i].role === 'assistant' && /```html[\s\S]*?```/.test(conversationMessages[i].content)) {
+            const m = conversationMessages[i];
+            // Check both new format (m.code) and legacy format (code in content)
+            if (m.role === 'assistant' && (m.code || /```html[\s\S]*?```/.test(m.content))) {
               lastCodeIndex = i;
               break;
             }
           }
         }
 
-        // Helper to strip code from old assistant messages, preserving any message text
+        // Helper to get full message content for API requests
+        // Reconstructs text + code for new format, handles legacy format
         const getMessageContent = (m, idx) => {
-          if (usePlaceholders && m.role === 'assistant' && idx < lastCodeIndex && /```html[\s\S]*?```/.test(m.content)) {
-            // Replace code block with placeholder, keep any surrounding text
-            return m.content.replace(/```html[\s\S]*?```/, '[Previous code version omitted]');
+          // Reconstruct full content: new format has code separate, legacy has it embedded
+          let fullContent;
+          if (m.role === 'assistant' && m.code !== undefined) {
+            // New format: reconstruct text + code block
+            fullContent = m.code ? `${m.content}\n\n\`\`\`html\n${m.code}\n\`\`\`` : m.content;
+          } else {
+            // Legacy format: content already has code embedded
+            fullContent = m.content;
           }
-          return m.content;
+
+          // Apply placeholder logic if enabled
+          if (usePlaceholders && m.role === 'assistant' && idx < lastCodeIndex) {
+            const hasCode = m.code || /```html[\s\S]*?```/.test(fullContent);
+            if (hasCode) {
+              return fullContent.replace(/```html[\s\S]*?```/, '[Previous code version omitted]');
+            }
+          }
+          return fullContent;
         };
 
         // Helper to build message content (with optional screenshot)
@@ -2192,7 +2298,9 @@ Submitted via Vibey`);
           updatePreview(htmlCode);
         }
 
-        addMessage('assistant', assistantMessage, { usage, webSearch: useWebSearch, model: effectiveModel });
+        // Store text content separately from code
+        const textContent = assistantMessage.replace(/```html[\s\S]*?```/g, '').trim();
+        addMessage('assistant', textContent || 'Updated', { usage, webSearch: useWebSearch, model: effectiveModel, code: htmlCode });
 
       } catch (error) {
         addMessage('error', `Error: ${error.message}`);
