@@ -338,6 +338,9 @@
     }
 
     .message-usage {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
       font-size: 11px;
       color: #888;
       margin-top: 6px;
@@ -362,6 +365,17 @@
     .message-usage .model-info {
       color: #a78bfa;
       font-weight: 500;
+    }
+
+    .message-usage .restore-btn {
+      color: #f59e0b;
+      cursor: pointer;
+      margin-left: auto;
+    }
+
+    .message-usage .restore-btn:hover {
+      color: #d97706;
+      text-decoration: underline;
     }
 
     .toggle-label {
@@ -1908,6 +1922,16 @@ Submitted via Vibey`);
       sendBtn.addEventListener('click', sendMessage);
       chatInput.addEventListener('keydown', handleInputKeydown);
 
+      // Handle restore button clicks via event delegation
+      chatMessages.addEventListener('click', (e) => {
+        if (e.target.classList.contains('restore-btn')) {
+          const index = parseInt(e.target.dataset.restoreIndex, 10);
+          if (!isNaN(index)) {
+            restoreVersion(index);
+          }
+        }
+      });
+
       // Keyboard shortcut: Escape to toggle panel
       document.addEventListener('keydown', (e) => {
         if (e.key === 'Escape') {
@@ -2085,7 +2109,10 @@ Submitted via Vibey`);
         return;
       }
 
-      chatMessages.innerHTML = messages.map(msg => {
+      const currentApp = getCurrentApp();
+      const currentCode = currentApp?.code || '';
+
+      chatMessages.innerHTML = messages.map((msg, index) => {
         // For assistant messages: use content directly if code is separate,
         // otherwise strip code blocks for backwards compatibility with old messages
         const displayContent = msg.role === 'assistant'
@@ -2102,6 +2129,11 @@ Submitted via Vibey`);
           name = name.replace(/^[^/]+\//, '');
           return name;
         };
+
+        // Check if this message has code that can be restored
+        const messageCode = msg.role === 'assistant' ? getMessageCode(msg) : null;
+        const canRestore = messageCode && messageCode !== currentCode;
+        const restoreBtn = canRestore ? `<span class="restore-btn" data-restore-index="${index}">Restore</span>` : '';
 
         if (msg.role === 'assistant' && msg.usage && showCostToggle.checked) {
           const { prompt_tokens, completion_tokens, total_cost, cache_read_tokens, cache_write_tokens } = msg.usage;
@@ -2131,10 +2163,14 @@ Submitted via Vibey`);
             ${cacheStr}
             ${webSearchStr}
             <span>Cost: ${costStr}</span>
+            ${restoreBtn}
           </div>`;
         } else if (msg.role === 'assistant' && msg.model) {
           // Show model even when cost display is off
-          usageHtml = `<div class="message-usage"><span class="model-info">${escapeHtml(formatModelName(msg.model))}</span></div>`;
+          usageHtml = `<div class="message-usage"><span class="model-info">${escapeHtml(formatModelName(msg.model))}</span>${restoreBtn}</div>`;
+        } else if (msg.role === 'assistant' && canRestore) {
+          // Show restore button even if no model/usage info
+          usageHtml = `<div class="message-usage">${restoreBtn}</div>`;
         }
 
         return `<div class="message ${msg.role}">${escapeHtml(displayContent)}${usageHtml}</div>`;
@@ -2162,6 +2198,25 @@ Submitted via Vibey`);
     function extractHtmlCode(text) {
       const match = text.match(/```html\s*([\s\S]*?)```/);
       return match ? match[1].trim() : null;
+    }
+
+    function getMessageCode(msg) {
+      // Get code from message - either from code field or extracted from content
+      return msg.code || extractHtmlCode(msg.content) || null;
+    }
+
+    function restoreVersion(messageIndex) {
+      const msg = messages[messageIndex];
+      if (!msg) return;
+
+      const code = getMessageCode(msg);
+      if (code) {
+        updatePreview(code);
+        // Add user message explaining the restore intent
+        addMessage('user', 'Revert to an earlier version of the code');
+        // Add assistant message with the restored code so the AI knows the current state
+        addMessage('assistant', 'Done. Here is the restored code:', { code: code });
+      }
     }
 
     function updatePreview(code) {
