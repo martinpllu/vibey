@@ -1606,6 +1606,16 @@ The user will describe what they want, and you'll generate the complete HTML for
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
     }
 
+    function getUniqueName(baseName) {
+      const existingNames = new Set(apps.map(a => a.name));
+      if (!existingNames.has(baseName)) return baseName;
+      let counter = 2;
+      while (existingNames.has(`${baseName} ${counter}`)) {
+        counter++;
+      }
+      return `${baseName} ${counter}`;
+    }
+
     function getCurrentApp() {
       return apps.find(a => a.id === currentAppId);
     }
@@ -1691,7 +1701,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     function createNewApp() {
       const newApp = {
         id: generateId(),
-        name: 'New App',
+        name: getUniqueName('New App'),
         code: '',
         messages: []
       };
@@ -1981,7 +1991,7 @@ Submitted via Vibey`);
         // Create new app from community content
         const newApp = {
           id: generateId(),
-          name: `${appName} (${generateShortId()})`,
+          name: getUniqueName(appName),
           code: code,
           messages: chatMessages
         };
@@ -1999,11 +2009,6 @@ Submitted via Vibey`);
         card.style.opacity = '1';
         alert('Failed to load app: ' + err.message);
       }
-    }
-
-    function generateShortId() {
-      // Generate a short 4-character alphanumeric ID
-      return Math.random().toString(36).substr(2, 4);
     }
 
     function loadFromUrl() {
@@ -2035,13 +2040,10 @@ Submitted via Vibey`);
             }
           }
 
-          // Generate unique name with short ID suffix to avoid collisions
-          const uniqueName = `${originalName} (${generateShortId()})`;
-
           // Create a new app with the shared code
           const newApp = {
             id: generateId(),
-            name: uniqueName,
+            name: getUniqueName(originalName),
             code: code,
             messages: chatMessages
           };
@@ -2143,7 +2145,7 @@ Submitted via Vibey`);
       // Create new app
       const newApp = {
         id: generateId(),
-        name: `${appName} (${generateShortId()})`,
+        name: getUniqueName(appName),
         code: code,
         messages: chatMessages
       };
