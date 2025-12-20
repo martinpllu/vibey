@@ -24,7 +24,7 @@
       width: 100%;
       height: 100%;
       border: none;
-      background: #f5f5f5;
+      background: #F7F7F6;
     }
 
     /* Floating toggle button */
@@ -32,23 +32,23 @@
       position: fixed;
       bottom: 20px;
       right: 20px;
-      width: 56px;
-      height: 56px;
-      border-radius: 50%;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      width: 52px;
+      height: 52px;
+      border-radius: 14px;
+      background: #4A4846;
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+      box-shadow: 0 4px 16px rgba(74, 72, 70, 0.35);
       z-index: 10001;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.2s, box-shadow 0.2s;
+      transition: transform 0.15s, box-shadow 0.15s;
     }
 
     #vibey-toggle:hover {
-      transform: scale(1.05);
-      box-shadow: 0 6px 16px rgba(102, 126, 234, 0.5);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 24px rgba(74, 72, 70, 0.45);
     }
 
     #vibey-toggle svg {
@@ -60,25 +60,31 @@
     /* Overlay panel */
     #vibey-panel {
       position: fixed;
-      bottom: 90px;
+      bottom: 84px;
       right: 20px;
       width: 400px;
       max-width: calc(100vw - 40px);
-      height: 500px;
+      height: 520px;
       max-height: calc(100vh - 120px);
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.15);
+      background: rgba(250, 250, 250, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-radius: 16px;
+      box-shadow:
+        0 1px 3px rgba(0, 0, 0, 0.04),
+        0 4px 12px rgba(0, 0, 0, 0.06),
+        0 12px 32px rgba(0, 0, 0, 0.08);
       z-index: 10000;
       display: flex;
       flex-direction: column;
       overflow: hidden;
-      transition: opacity 0.2s, transform 0.2s;
+      transition: opacity 0.15s, transform 0.15s;
+      border: 1px solid rgba(0, 0, 0, 0.08);
     }
 
     #vibey-panel.collapsed {
       opacity: 0;
-      transform: translateY(20px) scale(0.95);
+      transform: translateY(16px) scale(0.97);
       pointer-events: none;
     }
 
@@ -87,17 +93,17 @@
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 8px 12px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
+      padding: 12px 14px;
+      background: rgba(74, 72, 70, 0.95);
+      color: #FFFFFF;
     }
 
     .app-name-input {
       flex: 1;
       background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 4px;
-      padding: 6px 10px;
+      border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 8px;
+      padding: 8px 12px;
       color: white;
       font-size: 14px;
       font-weight: 500;
@@ -110,24 +116,26 @@
 
     .app-name-input:focus {
       outline: none;
-      background: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.4);
     }
 
     .app-bar-btn {
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.3);
-      border-radius: 4px;
-      padding: 6px;
+      background: rgba(255,255,255,0.15);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px;
+      padding: 7px;
       cursor: pointer;
       color: white;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: background 0.2s;
+      transition: all 0.15s;
     }
 
     .app-bar-btn:hover {
-      background: rgba(255,255,255,0.3);
+      background: rgba(255,255,255,0.25);
+      border-color: rgba(255,255,255,0.3);
     }
 
     .app-bar-btn svg {
@@ -144,12 +152,12 @@
       position: absolute;
       top: 100%;
       right: 0;
-      margin-top: 4px;
+      margin-top: 6px;
       background: white;
-      border-radius: 8px;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      border-radius: 10px;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05);
       min-width: 200px;
-      max-height: 300px;
+      max-height: 320px;
       overflow-y: auto;
       z-index: 100;
       display: none;
@@ -159,15 +167,50 @@
       display: block;
     }
 
+    .app-dropdown-actions {
+      display: flex;
+      gap: 6px;
+      padding: 8px;
+      border-bottom: 1px solid #e5e7eb;
+    }
+
+    .app-dropdown-action-btn {
+      flex: 1;
+      padding: 8px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 6px;
+      background: #f9fafb;
+      color: #374151;
+      font-size: 12px;
+      font-weight: 500;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .app-dropdown-action-btn:hover {
+      background: #f3f4f6;
+      border-color: #d1d5db;
+    }
+
+    .app-dropdown-action-btn svg {
+      width: 14px;
+      height: 14px;
+    }
+
     .app-dropdown-item {
       padding: 10px 12px;
       cursor: pointer;
-      color: #333;
-      font-size: 14px;
-      border-bottom: 1px solid #eee;
+      color: #374151;
+      font-size: 13px;
+      border-bottom: 1px solid #f3f4f6;
       display: flex;
       align-items: center;
       justify-content: space-between;
+      transition: background 0.1s;
     }
 
     .app-dropdown-item:last-child {
@@ -175,35 +218,30 @@
     }
 
     .app-dropdown-item:hover {
-      background: #f5f5f5;
+      background: #f9fafb;
     }
 
     .app-dropdown-item.active {
-      background: #f0f0ff;
-      color: #667eea;
-      font-weight: 500;
-    }
-
-    .app-dropdown-item.new-app {
-      color: #667eea;
+      background: #F2F2F1;
+      color: #5C5856;
       font-weight: 500;
     }
 
     .app-dropdown-divider {
       height: 1px;
-      background: #eee;
-      margin: 4px 0;
+      background: #e5e7eb;
+      margin: 0;
     }
 
     .app-delete-btn {
       background: none;
       border: none;
-      color: #999;
+      color: #9ca3af;
       cursor: pointer;
       padding: 2px;
       display: flex;
       opacity: 0;
-      transition: opacity 0.2s, color 0.2s;
+      transition: opacity 0.15s, color 0.15s;
     }
 
     .app-dropdown-item:hover .app-delete-btn {
@@ -211,41 +249,46 @@
     }
 
     .app-delete-btn:hover {
-      color: #dc3545;
+      color: #ef4444;
     }
 
     .app-delete-btn svg {
-      width: 16px;
-      height: 16px;
+      width: 15px;
+      height: 15px;
     }
 
     /* Panel header with tabs */
     .panel-header {
       display: flex;
-      background: #f8f9fa;
-      border-bottom: 1px solid #e9ecef;
+      background: transparent;
+      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
     }
 
     .tab-btn {
       flex: 1;
-      padding: 12px 16px;
+      padding: 13px 16px;
       border: none;
       background: transparent;
       cursor: pointer;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 500;
-      color: #6c757d;
-      transition: color 0.2s, background 0.2s;
+      color: #9ca3af;
+      transition: color 0.15s;
+      outline: none;
+    }
+
+    .tab-btn:focus {
+      outline: none;
     }
 
     .tab-btn:hover {
-      background: #e9ecef;
+      color: #4A4846;
     }
 
     .tab-btn.active {
-      color: #667eea;
-      background: white;
-      border-bottom: 2px solid #667eea;
+      color: #4A4846;
+      background: transparent;
+      box-shadow: inset 0 -2px 0 #4A4846;
     }
 
     /* Tab content */
@@ -273,30 +316,34 @@
     .form-group label {
       display: block;
       margin-bottom: 6px;
-      font-size: 13px;
-      font-weight: 500;
-      color: #495057;
+      font-size: 11px;
+      font-weight: 600;
+      color: #9ca3af;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
     }
 
     .form-group input,
     .form-group select {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #dee2e6;
-      border-radius: 6px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
       font-size: 14px;
-      transition: border-color 0.2s;
+      transition: border-color 0.15s, box-shadow 0.15s;
+      background: #fff;
     }
 
     .form-group input:focus,
     .form-group select:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: #5C5856;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
     }
 
     .form-hint {
       font-size: 12px;
-      color: #6c757d;
+      color: #6b7280;
       margin-top: 4px;
     }
 
@@ -307,34 +354,35 @@
       padding: 16px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 10px;
     }
 
     .message {
       max-width: 85%;
       padding: 10px 14px;
-      border-radius: 12px;
+      border-radius: 14px;
       font-size: 14px;
-      line-height: 1.4;
+      line-height: 1.45;
     }
 
     .message.user {
       align-self: flex-end;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #4A4846;
       color: white;
       border-bottom-right-radius: 4px;
     }
 
     .message.assistant {
       align-self: flex-start;
-      background: #f1f3f4;
-      color: #333;
+      background: rgba(74, 72, 70, 0.08);
+      color: #374151;
       border-bottom-left-radius: 4px;
     }
 
     .message.error {
-      background: #fee;
-      color: #c00;
+      background: #fef2f2;
+      color: #dc2626;
+      border: 1px solid #fecaca;
     }
 
     .message-usage {
@@ -342,10 +390,10 @@
       flex-wrap: wrap;
       align-items: center;
       font-size: 11px;
-      color: #888;
+      color: #9ca3af;
       margin-top: 6px;
       padding-top: 6px;
-      border-top: 1px solid rgba(0,0,0,0.1);
+      border-top: 1px solid rgba(0,0,0,0.06);
     }
 
     .message-usage span {
@@ -353,17 +401,17 @@
     }
 
     .message-usage .cache-info {
-      color: #22c55e;
+      color: #10b981;
       font-weight: 500;
     }
 
     .message-usage .web-search-info {
-      color: #667eea;
+      color: #5C5856;
       font-weight: 500;
     }
 
     .message-usage .model-info {
-      color: #a78bfa;
+      color: #5C5856;
       font-weight: 500;
     }
 
@@ -381,19 +429,21 @@
     .toggle-label {
       display: flex;
       align-items: center;
-      gap: 8px;
+      gap: 10px;
       cursor: pointer;
       font-size: 14px;
+      color: #374151;
     }
 
     .toggle-label input[type="checkbox"] {
       width: 18px;
       height: 18px;
       cursor: pointer;
+      accent-color: #5C5856;
     }
 
     .info-icon {
-      color: #667eea;
+      color: #5C5856;
       cursor: help;
       font-size: 14px;
       margin-left: 4px;
@@ -401,14 +451,13 @@
 
     .info-tooltip {
       display: none;
-      background: #1a1a2e;
-      color: #e0e0e0;
+      background: #1e293b;
+      color: #e2e8f0;
       padding: 12px;
       border-radius: 8px;
       font-size: 12px;
       line-height: 1.5;
       margin-top: 8px;
-      border: 1px solid #333;
     }
 
     .info-tooltip.visible {
@@ -416,19 +465,18 @@
     }
 
     .info-tooltip a {
-      color: #667eea;
+      color: #9A9896;
     }
 
     .message.system {
       align-self: center;
-      background: #e8f4f8;
-      color: #0077b6;
+      background: #ecfdf5;
+      color: #059669;
       font-size: 12px;
     }
 
     .chat-input-area {
       padding: 12px;
-      border-top: 1px solid #e9ecef;
       display: flex;
       align-items: flex-end;
       gap: 8px;
@@ -450,33 +498,39 @@
     .chat-input-area textarea {
       flex: 1;
       padding: 10px 12px;
-      border: 1px solid #dee2e6;
-      border-radius: 8px;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
       font-size: 14px;
       resize: none;
       font-family: inherit;
       min-height: 44px;
       max-height: 120px;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
 
     .chat-input-area textarea:focus {
       outline: none;
-      border-color: #667eea;
+      border-color: #5C5856;
+      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
     }
 
     .send-btn {
-      padding: 10px 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      padding: 0 18px;
+      height: 44px;
+      background: #4A4846;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       cursor: pointer;
       font-weight: 500;
-      transition: opacity 0.2s;
+      font-size: 14px;
+      transition: opacity 0.15s, transform 0.15s;
+      flex-shrink: 0;
     }
 
     .send-btn:hover {
       opacity: 0.9;
+      transform: translateY(-1px);
     }
 
     .send-btn:disabled {
@@ -487,23 +541,25 @@
     /* Toolbar buttons */
     .chat-toolbar {
       display: flex;
+      align-items: center;
       gap: 8px;
       padding: 8px 12px 0;
     }
 
     .toolbar-btn {
       padding: 6px 12px;
-      border: 1px solid #dee2e6;
+      border: 1px solid #e5e7eb;
       border-radius: 6px;
       background: white;
       font-size: 12px;
       cursor: pointer;
-      transition: background 0.2s, border-color 0.2s;
+      color: #4b5563;
+      transition: background 0.15s, border-color 0.15s;
     }
 
     .toolbar-btn:hover {
-      background: #f8f9fa;
-      border-color: #adb5bd;
+      background: #f9fafb;
+      border-color: #d1d5db;
     }
 
     .toolbar-btn:disabled {
@@ -512,33 +568,78 @@
     }
 
     .toolbar-btn.error-btn {
-      background: #fee;
-      border-color: #fcc;
-      color: #c00;
+      background: #fef2f2;
+      border-color: #fecaca;
+      color: #dc2626;
     }
 
     .toolbar-btn.error-btn:hover {
-      background: #fdd;
+      background: #fee2e2;
     }
 
     .toolbar-btn.log-btn {
-      background: #e8f4f8;
-      border-color: #b8d4e3;
-      color: #0077b6;
+      background: #ecfdf5;
+      border-color: #a7f3d0;
+      color: #059669;
     }
 
     .toolbar-btn.log-btn:hover {
-      background: #d0ebf4;
+      background: #d1fae5;
     }
 
-    .toolbar-btn.web-search-active {
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-      color: white;
-      border-color: #667eea;
+    /* Web Search Toggle */
+    .web-search-toggle {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 10px;
+      border: 1px solid #e5e7eb;
+      border-radius: 20px;
+      background: #f9fafb;
+      font-size: 12px;
+      cursor: pointer;
+      color: #6b7280;
+      transition: all 0.15s;
+      margin-left: auto;
     }
 
-    .toolbar-btn.web-search-active:hover {
-      opacity: 0.9;
+    .web-search-toggle:hover {
+      border-color: #d1d5db;
+    }
+
+    .web-search-toggle.active {
+      background: #EAEAE9;
+      border-color: rgba(102,126,234,0.3);
+      color: #5C5856;
+    }
+
+    .web-search-toggle .toggle-track {
+      width: 28px;
+      height: 16px;
+      background: #d1d5db;
+      border-radius: 8px;
+      position: relative;
+      transition: background 0.15s;
+    }
+
+    .web-search-toggle.active .toggle-track {
+      background: #4A4846;
+    }
+
+    .web-search-toggle .toggle-thumb {
+      width: 12px;
+      height: 12px;
+      background: white;
+      border-radius: 50%;
+      position: absolute;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.15s;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .web-search-toggle.active .toggle-thumb {
+      transform: translateX(12px);
     }
 
     #attachment-indicator {
@@ -546,22 +647,23 @@
       align-items: center;
       gap: 4px;
       padding: 4px 8px;
-      background: #e8f4f8;
-      border-radius: 4px;
+      background: #F2F2F1;
+      border: 1px solid #ddd6fe;
+      border-radius: 6px;
       font-size: 11px;
-      color: #0077b6;
+      color: #4A4846;
       cursor: pointer;
       white-space: nowrap;
     }
 
     #attachment-indicator:hover {
-      background: #d0ebf4;
+      background: #EAEAE9;
     }
 
     #attachment-indicator .remove-btn {
       background: none;
       border: none;
-      color: #0077b6;
+      color: #4A4846;
       cursor: pointer;
       font-size: 14px;
       padding: 0;
@@ -570,14 +672,14 @@
     }
 
     #attachment-indicator .remove-btn:hover {
-      color: #c00;
+      color: #dc2626;
     }
 
     /* Screenshot preview modal */
     #screenshot-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.8);
+      background: rgba(0,0,0,0.85);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -588,8 +690,8 @@
     #screenshot-modal img {
       max-width: 90%;
       max-height: 90%;
-      border-radius: 8px;
-      box-shadow: 0 4px 24px rgba(0,0,0,0.3);
+      border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     }
 
     /* Loading indicator */
@@ -598,8 +700,8 @@
       align-items: center;
       gap: 8px;
       padding: 10px 14px;
-      background: #f1f3f4;
-      border-radius: 12px;
+      background: #f3f4f6;
+      border-radius: 14px;
       align-self: flex-start;
     }
 
@@ -609,9 +711,9 @@
     }
 
     .loading-dots span {
-      width: 8px;
-      height: 8px;
-      background: #667eea;
+      width: 6px;
+      height: 6px;
+      background: #5C5856;
       border-radius: 50%;
       animation: bounce 1.4s infinite ease-in-out;
     }
@@ -631,37 +733,43 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #6c757d;
+      color: #9ca3af;
       text-align: center;
-      padding: 20px;
+      padding: 24px;
     }
 
     .empty-state svg {
-      width: 48px;
-      height: 48px;
+      width: 40px;
+      height: 40px;
       margin-bottom: 12px;
-      opacity: 0.5;
+      opacity: 0.4;
+    }
+
+    .empty-state p {
+      font-size: 14px;
+      line-height: 1.5;
     }
 
     /* API key setup */
     .api-key-setup {
-      background: linear-gradient(135deg, #f0f0ff 0%, #fff0f5 100%);
-      border: 1px solid #e0e0ff;
-      border-radius: 8px;
+      background: #F5F5F4;
+      border: 1px solid rgba(102,126,234,0.15);
+      border-radius: 12px;
       padding: 16px;
       margin-bottom: 16px;
     }
 
     .api-key-setup h3 {
-      margin: 0 0 12px 0;
-      color: #667eea;
-      font-size: 16px;
+      margin: 0 0 10px 0;
+      color: #5C5856;
+      font-size: 15px;
+      font-weight: 600;
     }
 
     .api-key-setup p {
       margin: 0 0 12px 0;
       font-size: 13px;
-      color: #555;
+      color: #6b7280;
       line-height: 1.5;
     }
 
@@ -669,17 +777,17 @@
       margin: 0;
       padding-left: 20px;
       font-size: 13px;
-      color: #555;
+      color: #6b7280;
       line-height: 1.8;
     }
 
     .api-key-setup a {
-      color: #667eea;
+      color: #5C5856;
       font-weight: 500;
     }
 
     .privacy-note {
-      color: #22c55e !important;
+      color: #059669 !important;
       font-style: italic;
     }
 
@@ -691,14 +799,14 @@
       gap: 8px;
       width: 100%;
       padding: 12px 16px;
-      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      background: #4A4846;
       color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 14px;
       font-weight: 500;
       cursor: pointer;
-      transition: opacity 0.2s, transform 0.2s;
+      transition: opacity 0.15s, transform 0.15s;
     }
 
     .oauth-btn:hover {
@@ -722,27 +830,30 @@
       align-items: center;
       gap: 8px;
       padding: 10px 12px;
-      background: #e8f5e9;
-      border-radius: 6px;
+      background: #ecfdf5;
+      border: 1px solid #a7f3d0;
+      border-radius: 10px;
       font-size: 13px;
-      color: #2e7d32;
+      color: #059669;
       margin-bottom: 12px;
     }
 
     .auth-status.oauth {
-      background: #e3f2fd;
-      color: #1565c0;
+      background: #F2F2F1;
+      border-color: rgba(102,126,234,0.2);
+      color: #5C5856;
     }
 
     .auth-status button {
       margin-left: auto;
-      padding: 4px 8px;
+      padding: 4px 10px;
       background: transparent;
       border: 1px solid currentColor;
-      border-radius: 4px;
+      border-radius: 6px;
       color: inherit;
       font-size: 11px;
       cursor: pointer;
+      transition: background 0.15s;
     }
 
     .auth-status button:hover {
@@ -753,111 +864,123 @@
     .submit-modal {
       position: fixed;
       inset: 0;
-      background: rgba(0,0,0,0.5);
+      background: rgba(0,0,0,0.4);
       display: flex;
       align-items: center;
       justify-content: center;
       z-index: 10001;
+      backdrop-filter: blur(2px);
     }
 
     .submit-modal-content {
       background: white;
-      border-radius: 12px;
+      border-radius: 14px;
       padding: 24px;
       max-width: 400px;
       text-align: center;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.15);
     }
 
     .submit-modal-content h3 {
-      margin: 0 0 12px 0;
-      font-size: 18px;
+      margin: 0 0 10px 0;
+      font-size: 17px;
+      font-weight: 600;
+      color: #1f2937;
     }
 
     .submit-modal-content p {
       margin: 0 0 12px 0;
       font-size: 14px;
-      color: #555;
+      color: #6b7280;
     }
 
     .submit-modal-success {
-      color: #28a745;
+      color: #059669;
       font-weight: 500;
     }
 
     .submit-modal-buttons {
       display: flex;
-      gap: 12px;
+      gap: 10px;
       justify-content: center;
       margin-top: 20px;
     }
 
     .submit-modal-btn {
-      padding: 10px 20px;
-      border-radius: 6px;
-      border: 1px solid #ddd;
+      padding: 10px 18px;
+      border-radius: 8px;
+      border: 1px solid #e5e7eb;
       background: white;
       cursor: pointer;
       text-decoration: none;
-      color: inherit;
+      color: #374151;
       font-size: 14px;
+      font-weight: 500;
+      transition: background 0.15s, border-color 0.15s;
     }
 
     .submit-modal-btn:hover {
-      background: #f5f5f5;
+      background: #f9fafb;
+      border-color: #d1d5db;
     }
 
     .submit-modal-btn.primary {
-      background: #667eea;
+      background: #4A4846;
       color: white;
-      border-color: #667eea;
+      border-color: transparent;
     }
 
     .submit-modal-btn.primary:hover {
-      background: #5a6fd6;
+      opacity: 0.9;
     }
 
     /* Community Tab */
     .community-grid {
-      padding: 16px;
+      padding: 12px;
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 8px;
       overflow-y: auto;
     }
 
     .community-card {
-      background: #f8f9fa;
-      border-radius: 8px;
+      background: #f9fafb;
+      border: 1px solid #f3f4f6;
+      border-radius: 10px;
       padding: 12px;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: background 0.15s, border-color 0.15s;
     }
 
     .community-card:hover {
-      background: #e9ecef;
+      background: #f3f4f6;
+      border-color: #e5e7eb;
     }
 
     .community-card h4 {
       margin: 0 0 4px 0;
       font-size: 14px;
+      font-weight: 600;
+      color: #1f2937;
     }
 
     .community-card .author {
       font-size: 12px;
-      color: #666;
+      color: #9ca3af;
       margin-bottom: 6px;
     }
 
     .community-card .description {
       font-size: 13px;
-      color: #444;
+      color: #6b7280;
       margin: 0;
+      line-height: 1.4;
     }
 
     .community-empty {
       text-align: center;
       padding: 40px 20px;
-      color: #666;
+      color: #9ca3af;
     }
 
     .community-empty p {
@@ -867,7 +990,7 @@
     .community-error {
       text-align: center;
       padding: 40px;
-      color: #dc3545;
+      color: #ef4444;
     }
   </style>
 </head>
@@ -925,8 +1048,11 @@
       <div class="chat-toolbar">
         <button class="toolbar-btn error-btn" id="fix-errors-btn" style="display: none;">Fix Errors (0)</button>
         <button class="toolbar-btn log-btn" id="send-logs-btn" style="display: none;">Send Logs (0)</button>
-        <button class="toolbar-btn" id="screenshot-btn">Attach Screenshot</button>
-        <button class="toolbar-btn" id="web-search-btn" title="Enable web search for this message ($0.02/request)">Web Search</button>
+        <button class="toolbar-btn" id="screenshot-btn">Screenshot</button>
+        <button class="web-search-toggle" id="web-search-btn" title="Enable web search ($0.02/request)">
+          <span>Search</span>
+          <div class="toggle-track"><div class="toggle-thumb"></div></div>
+        </button>
       </div>
       <div class="chat-input-area">
         <div class="input-wrapper">
@@ -984,7 +1110,7 @@
           </div>
         </div>
         <div class="form-group">
-          <button id="clear-code-btn" style="padding: 8px 12px; background: #dc3545; color: white; border: none; border-radius: 6px; cursor: pointer;">Clear Code & Chat</button>
+          <button id="clear-code-btn" style="padding: 8px 14px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.15s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">Clear Code & Chat</button>
         </div>
       </div>
     </div>
@@ -1019,7 +1145,7 @@
     <div class="submit-modal-content" style="max-width: 500px;">
       <h3>Import App</h3>
       <p>Paste HTML exported from Vibey</p>
-      <textarea id="import-textarea" placeholder="Paste your exported HTML here..." style="width: 100%; height: 200px; margin: 12px 0; padding: 12px; border: 1px solid #ddd; border-radius: 6px; font-family: monospace; font-size: 12px; resize: vertical;"></textarea>
+      <textarea id="import-textarea" placeholder="Paste your exported HTML here..." style="width: 100%; height: 200px; margin: 12px 0; padding: 12px; border: 1px solid #e5e7eb; border-radius: 10px; font-family: monospace; font-size: 12px; resize: vertical; transition: border-color 0.15s, box-shadow 0.15s;" onfocus="this.style.borderColor='#5C5856'; this.style.boxShadow='0 0 0 3px rgba(0, 0, 0, 0.08)'" onblur="this.style.borderColor='#e5e7eb'; this.style.boxShadow='none'"></textarea>
       <div class="submit-modal-buttons">
         <button id="import-modal-cancel" class="submit-modal-btn">Cancel</button>
         <button id="import-modal-confirm" class="submit-modal-btn primary">Import</button>
@@ -1563,7 +1689,7 @@ Submitted via Vibey`);
           <div class="community-empty">
             <p>Community requires HTTP server</p>
             <p style="font-size: 12px; color: #999;">Run locally with:</p>
-            <code style="display: block; background: #f5f5f5; padding: 8px; border-radius: 4px; font-size: 11px; margin-top: 8px;">python3 -m http.server</code>
+            <code style="display: block; background: #F7F7F6; padding: 8px; border-radius: 4px; font-size: 11px; margin-top: 8px;">python3 -m http.server</code>
             <p style="font-size: 12px; color: #999; margin-top: 8px;">Or deploy to GitHub Pages</p>
           </div>`;
         return;
@@ -1621,7 +1747,7 @@ Submitted via Vibey`);
 
       // Show loading state
       card.style.opacity = '0.6';
-      card.innerHTML += '<div style="font-size: 11px; color: #667eea; margin-top: 8px;">Loading...</div>';
+      card.innerHTML += '<div style="font-size: 11px; color: #5C5856; margin-top: 8px;">Loading...</div>';
 
       try {
         let content;
@@ -1765,21 +1891,25 @@ Submitted via Vibey`);
     }
 
     function renderAppDropdown() {
-      appDropdown.innerHTML = apps.map(app => `
+      appDropdown.innerHTML = `
+        <div class="app-dropdown-actions">
+          <button class="app-dropdown-action-btn" id="new-app-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+            New
+          </button>
+          <button class="app-dropdown-action-btn" id="import-app-btn">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M5 20h14v-2H5v2zm7-18L5.33 9h3.84v4h3.66V9h3.84L12 2z"/></svg>
+            Import
+          </button>
+        </div>
+      ` + apps.map(app => `
         <div class="app-dropdown-item ${app.id === currentAppId ? 'active' : ''}" data-app-id="${app.id}">
           <span>${app.name}</span>
           ${apps.length > 1 ? `<button class="app-delete-btn" data-delete-id="${app.id}" title="Delete app">
             <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>
           </button>` : ''}
         </div>
-      `).join('') + `
-        <div class="app-dropdown-item new-app" id="new-app-btn">
-          <span>+ New App</span>
-        </div>
-        <div class="app-dropdown-item new-app" id="import-app-btn">
-          <span>↓ Import App</span>
-        </div>
-      `;
+      `).join('');
 
       // Add click handlers
       appDropdown.querySelectorAll('[data-app-id]').forEach(el => {
@@ -2036,7 +2166,7 @@ Submitted via Vibey`);
 
     function toggleWebSearch() {
       webSearchEnabled = !webSearchEnabled;
-      webSearchBtn.classList.toggle('web-search-active', webSearchEnabled);
+      webSearchBtn.classList.toggle('active', webSearchEnabled);
     }
 
     function switchTab(tabName) {
@@ -2403,7 +2533,7 @@ Submitted via Vibey`);
       pendingScreenshot = null;
       webSearchEnabled = false;
       updateAttachmentIndicator();
-      webSearchBtn.classList.remove('web-search-active');
+      webSearchBtn.classList.remove('active');
 
       // Add user message (with attachment and web search indicator in UI)
       let displayContent = content;
