@@ -2965,7 +2965,30 @@ The user will describe what they want, and you'll generate the complete HTML for
       if (btn) btn.disabled = true;
 
       try {
-        // Load html2canvas on demand
+        const iframeDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
+
+        // First, try to grab canvas elements directly (works best for games)
+        const canvasElements = iframeDoc.querySelectorAll('canvas');
+        if (canvasElements.length > 0) {
+          // Find the largest canvas (likely the main game canvas)
+          let mainCanvas = canvasElements[0];
+          let maxArea = mainCanvas.width * mainCanvas.height;
+          for (const c of canvasElements) {
+            const area = c.width * c.height;
+            if (area > maxArea) {
+              mainCanvas = c;
+              maxArea = area;
+            }
+          }
+
+          // Grab the canvas directly
+          pendingScreenshot = mainCanvas.toDataURL('image/jpeg', 0.8);
+          updateAttachmentIndicator();
+          chatInput.focus();
+          return;
+        }
+
+        // Fallback to html2canvas for regular HTML content
         if (!window.html2canvas) {
           await new Promise((resolve, reject) => {
             const script = document.createElement('script');
@@ -2976,7 +2999,6 @@ The user will describe what they want, and you'll generate the complete HTML for
           });
         }
 
-        const iframeDoc = previewFrame.contentDocument || previewFrame.contentWindow.document;
         const viewportWidth = previewFrame.clientWidth;
         const viewportHeight = previewFrame.clientHeight;
 
