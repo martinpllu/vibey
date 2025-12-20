@@ -1114,11 +1114,6 @@
       line-height: 1.5;
     }
 
-    .submit-modal-success {
-      color: #059669;
-      font-weight: 600;
-    }
-
     .submit-modal-buttons {
       display: flex;
       gap: 10px;
@@ -1215,6 +1210,41 @@
       font-size: 13px;
     }
 
+    .community-cta {
+      background: var(--vibe-black);
+      color: var(--vibe-white);
+      padding: 16px;
+      border-radius: 12px;
+      margin-bottom: 12px;
+      cursor: pointer;
+      transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .community-cta:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    }
+
+    .community-cta-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 14px;
+      font-weight: 600;
+      margin: 0 0 6px 0;
+    }
+
+    .community-cta-desc {
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      opacity: 0.8;
+      margin: 0;
+    }
+
+    .community-cta-arrow {
+      float: right;
+      font-size: 18px;
+      margin-top: -2px;
+    }
+
     .community-error {
       text-align: center;
       padding: 40px;
@@ -1264,10 +1294,9 @@
           <svg viewBox="0 0 24 24"><path d="M18 16.08c-.76 0-1.44.3-1.96.77L8.91 12.7c.05-.23.09-.46.09-.7s-.04-.47-.09-.7l7.05-4.11c.54.5 1.25.81 2.04.81 1.66 0 3-1.34 3-3s-1.34-3-3-3-3 1.34-3 3c0 .24.04.47.09.7L8.04 9.81C7.5 9.31 6.79 9 6 9c-1.66 0-3 1.34-3 3s1.34 3 3 3c.79 0 1.5-.31 2.04-.81l7.12 4.16c-.05.21-.08.43-.08.65 0 1.61 1.31 2.92 2.92 2.92s2.92-1.31 2.92-2.92-1.31-2.92-2.92-2.92z"/></svg>
         </button>
         <div class="app-dropdown" id="share-dropdown">
-          <div class="app-dropdown-item" id="share-app-only">Copy HTML</div>
-          <div class="app-dropdown-item" id="share-with-chat">Copy HTML (with chat)</div>
+          <div class="app-dropdown-item" id="copy-html">Copy HTML</div>
           <div class="app-dropdown-divider"></div>
-          <div class="app-dropdown-item" id="add-to-community">Add to Community</div>
+          <div class="app-dropdown-item" id="add-to-community">Submit to Community</div>
         </div>
       </div>
       <div class="app-selector">
@@ -1361,6 +1390,9 @@
         <div class="form-group">
           <button id="clear-code-btn" style="padding: 10px 16px; background: #E8346C; color: #FFFFFF; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Space Mono', monospace; transition: all 0.15s;" onmouseover="this.style.background='#D42D5E';" onmouseout="this.style.background='#E8346C';">Clear Code & Chat</button>
         </div>
+        <div class="form-group" style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vibe-border);">
+          <a href="https://github.com/martinpllu/vibey" target="_blank" style="color: var(--vibe-text-dim); font-size: 12px; font-family: 'Space Mono', monospace; text-decoration: none;">GitHub →</a>
+        </div>
       </div>
     </div>
 
@@ -1370,21 +1402,6 @@
         <div class="community-empty">
           <p>Loading community apps...</p>
         </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Submit to Community Modal -->
-  <div id="submit-modal" class="submit-modal" style="display: none;">
-    <div class="submit-modal-content">
-      <h3>Submit to Community</h3>
-      <p>Share your creation with others!</p>
-      <p class="submit-modal-success">✓ HTML copied to clipboard</p>
-      <p>Create a new Gist, paste your HTML, then submit the Gist URL via GitHub Issue.</p>
-      <div class="submit-modal-buttons">
-        <button id="submit-modal-cancel" class="submit-modal-btn">Cancel</button>
-        <a href="https://gist.github.com" target="_blank" class="submit-modal-btn">Create Gist</a>
-        <a id="submit-modal-open" href="#" target="_blank" class="submit-modal-btn primary">Submit →</a>
       </div>
     </div>
   </div>
@@ -2075,13 +2092,14 @@ The user will describe what they want, and you'll generate the complete HTML for
       // Embed chat and metadata as a comment at the end
       if (includeChat && app.messages && app.messages.length > 0) {
         // Exclude code field from messages - the final code is already in the HTML
-        // Also handle legacy messages that have code embedded in content
+        // Normalize content to 'Updated' for assistant messages that had code
         const strippedMessages = app.messages.map(m => {
           if (m.role === 'assistant') {
             const { code, ...rest } = m;
-            // For legacy messages, also strip embedded code from content
-            if (code === undefined && rest.content) {
-              rest.content = rest.content.replace(/```html[\s\S]*?```/g, '').trim() || 'Updated';
+            // Strip any code blocks from content and normalize to 'Updated'
+            if (rest.content) {
+              const stripped = rest.content.replace(/```html[\s\S]*?```/g, '').trim();
+              rest.content = stripped || 'Updated';
             }
             return rest;
           }
@@ -2097,18 +2115,18 @@ The user will describe what they want, and you'll generate the complete HTML for
       return html;
     }
 
-    function shareApp(includeChat = false) {
+    function shareApp() {
       const app = getCurrentApp();
       if (!app || !app.code) {
         alert('No app code to share yet!');
         return;
       }
 
-      const html = exportAppHtml(includeChat);
+      const html = exportAppHtml(true);
 
       // Copy HTML to clipboard
       navigator.clipboard.writeText(html).then(() => {
-        alert(includeChat ? 'HTML with chat copied to clipboard!' : 'HTML copied to clipboard!');
+        alert('HTML copied to clipboard!');
       }).catch(() => {
         // Fallback: show in a prompt
         prompt('Copy this HTML:', html.substring(0, 1000) + '...');
@@ -2116,35 +2134,33 @@ The user will describe what they want, and you'll generate the complete HTML for
     }
 
     // Community functions
-    function showSubmitModal() {
+    function submitToCommunity() {
       const app = getCurrentApp();
       if (!app || !app.code) {
         alert('No app to share yet!');
         return;
       }
 
-      // Copy HTML with embedded chat (silently)
+      // Get HTML with embedded chat history
       const html = exportAppHtml(true);
-      navigator.clipboard.writeText(html);
 
-      // Build GitHub issue URL with template
-      const issueTitle = encodeURIComponent(`[Community] ${app.name || 'My App'}`);
-      const issueBody = encodeURIComponent(`**App Name:** ${app.name || 'My App'}
+      // Copy HTML to clipboard
+      navigator.clipboard.writeText(html).then(() => {
+        // Build issue template (without the HTML - user will paste it)
+        const issueTitle = encodeURIComponent(`[Community] ${app.name || 'My App'}`);
+        const issueBody = encodeURIComponent(`**Description:** [Brief description of your app]
 
-**Description:** [Brief description of what your app does]
+**HTML:** (paste below)
 
-**Share Link:** [Paste your copied link here]
+`);
 
----
-Submitted via Vibey`);
+        const issueUrl = `https://github.com/${GITHUB_REPO}/issues/new?title=${issueTitle}&body=${issueBody}&labels=community`;
 
-      const issueUrl = `https://github.com/${GITHUB_REPO}/issues/new?title=${issueTitle}&body=${issueBody}&labels=community`;
-      document.getElementById('submit-modal-open').href = issueUrl;
-      document.getElementById('submit-modal').style.display = 'flex';
-    }
-
-    function hideSubmitModal() {
-      document.getElementById('submit-modal').style.display = 'none';
+        alert('HTML copied to clipboard! Paste it at the end of the issue.');
+        window.open(issueUrl, '_blank');
+      }).catch(() => {
+        alert('Failed to copy HTML to clipboard. Please try "Copy HTML (with chat)" first, then create an issue manually.');
+      });
     }
 
     let communityLoaded = false;
@@ -2198,16 +2214,24 @@ Submitted via Vibey`);
         const csvText = files[0].content;
         const apps = parseCSV(csvText);
 
+        // CTA banner
+        const ctaHtml = `
+          <div class="community-cta" id="community-cta">
+            <span class="community-cta-arrow">→</span>
+            <p class="community-cta-title">Submit your app</p>
+            <p class="community-cta-desc">Share what you've built with the community</p>
+          </div>`;
+
         if (apps.length === 0) {
-          grid.innerHTML = `
+          grid.innerHTML = ctaHtml + `
             <div class="community-empty">
-              <p>No apps shared yet.</p>
-              <p>Be the first! Use Share → Add to Community</p>
+              <p>No apps shared yet. Be the first!</p>
             </div>`;
+          document.getElementById('community-cta').addEventListener('click', submitToCommunity);
           return;
         }
 
-        grid.innerHTML = apps.map(app => `
+        grid.innerHTML = ctaHtml + apps.map(app => `
           <div class="community-card" data-url="${escapeHtml(app.url)}">
             <h4>${escapeHtml(app.name)}</h4>
             <div class="author">by ${escapeHtml(app.author)}</div>
@@ -2216,6 +2240,7 @@ Submitted via Vibey`);
         `).join('');
 
         // Add click handlers
+        document.getElementById('community-cta').addEventListener('click', submitToCommunity);
         grid.querySelectorAll('.community-card').forEach(card => {
           card.addEventListener('click', () => loadCommunityApp(card));
         });
@@ -2616,22 +2641,13 @@ Submitted via Vibey`);
         shareDropdown.classList.toggle('open');
         appDropdown.classList.remove('open');
       });
-      document.getElementById('share-app-only').addEventListener('click', () => {
-        shareApp(false);
-        shareDropdown.classList.remove('open');
-      });
-      document.getElementById('share-with-chat').addEventListener('click', () => {
-        shareApp(true);
+      document.getElementById('copy-html').addEventListener('click', () => {
+        shareApp();
         shareDropdown.classList.remove('open');
       });
       document.getElementById('add-to-community').addEventListener('click', () => {
-        showSubmitModal();
+        submitToCommunity();
         shareDropdown.classList.remove('open');
-      });
-      document.getElementById('submit-modal-cancel').addEventListener('click', hideSubmitModal);
-      // Close modal when clicking outside
-      document.getElementById('submit-modal').addEventListener('click', (e) => {
-        if (e.target.id === 'submit-modal') hideSubmitModal();
       });
       // Import modal
       document.getElementById('import-modal-cancel').addEventListener('click', hideImportModal);
