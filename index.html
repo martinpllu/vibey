@@ -1289,7 +1289,6 @@
   <script>
     // Storage keys
     const STORAGE_KEYS = {
-      apps: 'vibey_apps',
       currentAppId: 'vibey_current_app_id',
       apiKey: 'vibey_openrouter_api_key',
       authType: 'vibey_auth_type', // 'oauth' or 'manual'
@@ -1299,6 +1298,201 @@
       showCost: 'vibey_show_cost',
       usePlaceholders: 'vibey_use_placeholders'
     };
+
+    // IndexedDB Storage class for apps and messages
+    class VibeyStorage {
+      constructor() {
+        this.db = null;
+        this.dbName = 'vibey_db';
+        this.dbVersion = 1;
+      }
+
+      async init() {
+        return new Promise((resolve, reject) => {
+          const request = indexedDB.open(this.dbName, this.dbVersion);
+
+          request.onerror = () => reject(request.error);
+
+          request.onsuccess = () => {
+            this.db = request.result;
+            resolve();
+          };
+
+          request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+
+            // Apps store: metadata only
+            if (!db.objectStoreNames.contains('apps')) {
+              db.createObjectStore('apps', { keyPath: 'id' });
+            }
+
+            // Messages store: individual messages with appId index
+            if (!db.objectStoreNames.contains('messages')) {
+              const msgStore = db.createObjectStore('messages', { keyPath: '_id', autoIncrement: true });
+              msgStore.createIndex('appId', 'appId', { unique: false });
+            }
+
+            // Screenshots store: binary blobs linked to messages
+            if (!db.objectStoreNames.contains('screenshots')) {
+              db.createObjectStore('screenshots', { keyPath: 'messageId' });
+            }
+          };
+        });
+      }
+
+      // Clear old localStorage keys (fresh start)
+      clearLegacyStorage() {
+        localStorage.removeItem('vibey_apps');
+        localStorage.removeItem('vibey_code');
+        localStorage.removeItem('vibey_messages');
+      }
+
+      // Load all apps (metadata only, no messages)
+      async loadAppsList() {
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction('apps', 'readonly');
+          const store = tx.objectStore('apps');
+          const request = store.getAll();
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Load a single app by ID
+      async loadApp(appId) {
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction('apps', 'readonly');
+          const store = tx.objectStore('apps');
+          const request = store.get(appId);
+          request.onsuccess = () => resolve(request.result);
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Save/update app metadata
+      async saveApp(app) {
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction('apps', 'readwrite');
+          const store = tx.objectStore('apps');
+          const request = store.put({
+            id: app.id,
+            name: app.name,
+            code: app.code,
+            updatedAt: Date.now()
+          });
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Delete app and all its messages/screenshots
+      async deleteApp(appId) {
+        const messages = await this.loadMessages(appId);
+        const messageIds = messages.map(m => m._id);
+
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction(['apps', 'messages', 'screenshots'], 'readwrite');
+
+          // Delete app
+          tx.objectStore('apps').delete(appId);
+
+          // Delete all messages for this app
+          const msgStore = tx.objectStore('messages');
+          const msgIndex = msgStore.index('appId');
+          const msgRequest = msgIndex.openCursor(IDBKeyRange.only(appId));
+          msgRequest.onsuccess = (event) => {
+            const cursor = event.target.result;
+            if (cursor) {
+              cursor.delete();
+              cursor.continue();
+            }
+          };
+
+          // Delete screenshots for this app's messages
+          const ssStore = tx.objectStore('screenshots');
+          messageIds.forEach(id => ssStore.delete(id));
+
+          tx.oncomplete = () => resolve();
+          tx.onerror = () => reject(tx.error);
+        });
+      }
+
+      // Load all messages for an app (with screenshots)
+      async loadMessages(appId) {
+        const messages = await new Promise((resolve, reject) => {
+          const tx = this.db.transaction('messages', 'readonly');
+          const store = tx.objectStore('messages');
+          const index = store.index('appId');
+          const request = index.getAll(appId);
+          request.onsuccess = () => resolve(request.result || []);
+          request.onerror = () => reject(request.error);
+        });
+
+        // Load screenshots for messages that have them
+        for (const msg of messages) {
+          if (msg._id) {
+            const screenshot = await this.loadScreenshot(msg._id);
+            if (screenshot) {
+              msg._screenshot = screenshot;
+            }
+          }
+        }
+
+        return messages;
+      }
+
+      // Save a single message, returns the auto-generated _id
+      async saveMessage(appId, message) {
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction('messages', 'readwrite');
+          const store = tx.objectStore('messages');
+          const msgData = { ...message, appId };
+          delete msgData._screenshot; // Screenshots stored separately
+          const request = store.add(msgData);
+          request.onsuccess = () => resolve(request.result); // Returns _id
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Save screenshot as blob
+      async saveScreenshot(messageId, base64Data) {
+        // Convert base64 to blob
+        const response = await fetch(base64Data);
+        const blob = await response.blob();
+
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction('screenshots', 'readwrite');
+          const store = tx.objectStore('screenshots');
+          const request = store.put({ messageId, data: blob });
+          request.onsuccess = () => resolve();
+          request.onerror = () => reject(request.error);
+        });
+      }
+
+      // Load screenshot as base64 data URL
+      async loadScreenshot(messageId) {
+        return new Promise((resolve, reject) => {
+          const tx = this.db.transaction('screenshots', 'readonly');
+          const store = tx.objectStore('screenshots');
+          const request = store.get(messageId);
+          request.onsuccess = async () => {
+            if (!request.result) {
+              resolve(null);
+              return;
+            }
+            // Convert blob back to base64
+            const reader = new FileReader();
+            reader.onloadend = () => resolve(reader.result);
+            reader.onerror = () => reject(reader.error);
+            reader.readAsDataURL(request.result.data);
+          };
+          request.onerror = () => reject(request.error);
+        });
+      }
+    }
+
+    // Global storage instance
+    let storage;
 
     // OAuth PKCE configuration
     const OAUTH_CONFIG = {
@@ -1620,85 +1814,86 @@ The user will describe what they want, and you'll generate the complete HTML for
       return apps.find(a => a.id === currentAppId);
     }
 
-    function saveApps() {
-      localStorage.setItem(STORAGE_KEYS.apps, JSON.stringify(apps));
+    // Save current app ID to localStorage (sync, small data)
+    function saveCurrentAppId() {
       localStorage.setItem(STORAGE_KEYS.currentAppId, currentAppId);
     }
 
-    function loadApps() {
-      const savedApps = localStorage.getItem(STORAGE_KEYS.apps);
-      if (savedApps) {
-        try {
-          const parsed = JSON.parse(savedApps);
-          // Validate it's an array
-          if (Array.isArray(parsed)) {
-            // Filter to only valid app objects (must have id)
-            apps = parsed.filter(a => a && typeof a === 'object' && a.id);
-            // Ensure each app has required properties
-            apps.forEach(a => {
-              if (typeof a.name !== 'string') a.name = 'Untitled';
-              if (typeof a.code !== 'string') a.code = '';
-              if (!Array.isArray(a.messages)) a.messages = [];
-            });
-          }
-        } catch (e) {
-          console.warn('[Vibey] Failed to parse saved apps, starting fresh');
-          apps = [];
-        }
-      }
+    // Save single app to IndexedDB
+    async function saveApp(app) {
+      if (!app) return;
+      await storage.saveApp(app);
+    }
 
-      // Migrate old data if no apps exist
-      if (apps.length === 0) {
-        const oldCode = localStorage.getItem('vibey_code');
-        const oldMessages = localStorage.getItem('vibey_messages');
-        let migratedMessages = [];
-        try {
-          if (oldMessages) migratedMessages = JSON.parse(oldMessages);
-          if (!Array.isArray(migratedMessages)) migratedMessages = [];
-        } catch (e) {
-          migratedMessages = [];
-        }
-        apps.push({
+    async function loadApps() {
+      // Clear legacy localStorage data
+      storage.clearLegacyStorage();
+
+      // Load apps from IndexedDB
+      const savedApps = await storage.loadAppsList();
+
+      if (savedApps.length > 0) {
+        apps = savedApps.map(a => ({
+          ...a,
+          messages: [] // Messages loaded lazily
+        }));
+      } else {
+        // Create default app
+        const defaultApp = {
           id: generateId(),
           name: 'My App',
-          code: oldCode || '',
-          messages: migratedMessages
-        });
+          code: '',
+          messages: []
+        };
+        apps = [defaultApp];
+        await storage.saveApp(defaultApp);
       }
 
+      // Load current app ID
       currentAppId = localStorage.getItem(STORAGE_KEYS.currentAppId) || apps[0]?.id;
       if (!apps.find(a => a.id === currentAppId)) {
         currentAppId = apps[0]?.id;
       }
-      saveApps();
+      saveCurrentAppId();
+
+      // Load messages for current app
+      if (currentAppId) {
+        const currentApp = getCurrentApp();
+        if (currentApp) {
+          currentApp.messages = await storage.loadMessages(currentAppId);
+        }
+      }
     }
 
-    function switchToApp(appId) {
+    async function switchToApp(appId) {
       // Save current app state first
       const currentApp = getCurrentApp();
       if (currentApp) {
         currentApp.messages = messages;
+        await saveApp(currentApp);
       }
-      saveApps();
 
       // Switch to new app
       currentAppId = appId;
+      saveCurrentAppId();
+
       const newApp = getCurrentApp();
       if (newApp) {
+        // Lazy load messages for this app
+        newApp.messages = await storage.loadMessages(appId);
         messages = newApp.messages || [];
         appNameInput.value = newApp.name;
         if (newApp.code) {
-          updatePreview(newApp.code);
+          await updatePreview(newApp.code);
         } else {
           replacePreviewFrame(EMPTY_PREVIEW_HTML);
         }
         renderMessages();
       }
-      saveApps();
       renderAppDropdown();
     }
 
-    function createNewApp() {
+    async function createNewApp() {
       const newApp = {
         id: generateId(),
         name: getUniqueName('New App'),
@@ -1706,10 +1901,11 @@ The user will describe what they want, and you'll generate the complete HTML for
         messages: []
       };
       apps.push(newApp);
-      switchToApp(newApp.id);
+      await storage.saveApp(newApp);
+      await switchToApp(newApp.id);
     }
 
-    function deleteApp(appId) {
+    async function deleteApp(appId) {
       if (apps.length <= 1) {
         alert('Cannot delete the last app');
         return;
@@ -1718,21 +1914,22 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       const idx = apps.findIndex(a => a.id === appId);
       if (idx !== -1) {
+        // Delete from IndexedDB (cascades to messages and screenshots)
+        await storage.deleteApp(appId);
         apps.splice(idx, 1);
         if (currentAppId === appId) {
-          switchToApp(apps[0].id);
+          await switchToApp(apps[0].id);
         } else {
-          saveApps();
           renderAppDropdown();
         }
       }
     }
 
-    function renameCurrentApp(name) {
+    async function renameCurrentApp(name) {
       const app = getCurrentApp();
       if (app) {
         app.name = name || 'Untitled';
-        saveApps();
+        await saveApp(app);
         renderAppDropdown();
       }
     }
@@ -1997,8 +2194,12 @@ Submitted via Vibey`);
         };
 
         apps.push(newApp);
-        saveApps();
-        switchToApp(newApp.id);
+        await storage.saveApp(newApp);
+        // Save imported messages
+        for (const msg of chatMessages) {
+          await storage.saveMessage(newApp.id, msg);
+        }
+        await switchToApp(newApp.id);
 
         // Switch to chat tab to show the loaded app
         switchTab('chat');
@@ -2011,7 +2212,7 @@ Submitted via Vibey`);
       }
     }
 
-    function loadFromUrl() {
+    async function loadFromUrl() {
       const params = new URLSearchParams(window.location.search);
       const encoded = params.get('code');
       if (encoded) {
@@ -2049,7 +2250,12 @@ Submitted via Vibey`);
           };
           apps.push(newApp);
           currentAppId = newApp.id;
-          saveApps();
+          await storage.saveApp(newApp);
+          // Save imported messages
+          for (const msg of chatMessages) {
+            await storage.saveMessage(newApp.id, msg);
+          }
+          saveCurrentAppId();
           // Clear the URL parameter
           window.history.replaceState({}, '', window.location.pathname);
           return true;
@@ -2118,7 +2324,7 @@ Submitted via Vibey`);
       document.getElementById('import-modal').style.display = 'none';
     }
 
-    function importApp() {
+    async function importApp() {
       const html = document.getElementById('import-textarea').value.trim();
       if (!html) {
         alert('Please paste HTML to import');
@@ -2151,13 +2357,21 @@ Submitted via Vibey`);
       };
 
       apps.push(newApp);
-      saveApps();
-      switchToApp(newApp.id);
+      await storage.saveApp(newApp);
+      // Save imported messages
+      for (const msg of chatMessages) {
+        await storage.saveMessage(newApp.id, msg);
+      }
+      await switchToApp(newApp.id);
       hideImportModal();
     }
 
     // Initialize
     async function init() {
+      // Initialize IndexedDB storage first
+      storage = new VibeyStorage();
+      await storage.init();
+
       // Handle OAuth callback first (if returning from OpenRouter)
       const params = new URLSearchParams(window.location.search);
       if (params.has('code') && !params.has('app')) {
@@ -2169,17 +2383,17 @@ Submitted via Vibey`);
         }
       }
 
-      // Check for shared app in URL
-      const loadedFromUrl = loadFromUrl();
+      // Load apps from IndexedDB
+      await loadApps();
 
-      // Load apps
-      loadApps();
+      // Check for shared app in URL (after storage is ready)
+      const loadedFromUrl = await loadFromUrl();
       const currentApp = getCurrentApp();
       if (currentApp) {
         messages = currentApp.messages || [];
         appNameInput.value = currentApp.name;
         if (currentApp.code) {
-          updatePreview(currentApp.code);
+          await updatePreview(currentApp.code);
         }
         renderMessages();
       }
@@ -2189,7 +2403,7 @@ Submitted via Vibey`);
       if (loadedFromUrl) {
         const app = getCurrentApp();
         if (app?.code) {
-          updatePreview(app.code);
+          await updatePreview(app.code);
         }
       }
 
@@ -2380,20 +2594,22 @@ Submitted via Vibey`);
       }
     }
 
-    function addMessage(role, content, options = {}) {
+    async function addMessage(role, content, options = {}) {
       const msg = { role, content };
       if (options.usage) msg.usage = options.usage;
       if (options.webSearch) msg._webSearch = true;
       if (options.model) msg.model = options.model;
       if (options.code) msg.code = options.code;
       messages.push(msg);
-      // Save to current app
+      // Save individual message to IndexedDB
       const app = getCurrentApp();
       if (app) {
         app.messages = messages;
-        saveApps();
+        const messageId = await storage.saveMessage(app.id, msg);
+        msg._id = messageId; // Store for screenshot linking
       }
       renderMessages();
+      return msg; // Return for screenshot attachment
     }
 
     function renderMessages() {
@@ -2505,21 +2721,21 @@ Submitted via Vibey`);
       return msg.code || extractHtmlCode(msg.content) || null;
     }
 
-    function restoreVersion(messageIndex) {
+    async function restoreVersion(messageIndex) {
       const msg = messages[messageIndex];
       if (!msg) return;
 
       const code = getMessageCode(msg);
       if (code) {
-        updatePreview(code);
+        await updatePreview(code);
         // Add user message explaining the restore intent
-        addMessage('user', 'Revert to an earlier version of the code');
+        await addMessage('user', 'Revert to an earlier version of the code');
         // Add assistant message with the restored code so the AI knows the current state
-        addMessage('assistant', 'Done. Here is the restored code:', { code: code });
+        await addMessage('assistant', 'Done. Here is the restored code:', { code: code });
       }
     }
 
-    function updatePreview(code) {
+    async function updatePreview(code) {
       // Validate code is a non-empty string
       if (!code || typeof code !== 'string') {
         console.warn('[Vibey] updatePreview called with invalid code:', typeof code);
@@ -2549,7 +2765,7 @@ Submitted via Vibey`);
       const app = getCurrentApp();
       if (app) {
         app.code = code;
-        saveApps();
+        await saveApp(app);
       } else {
         // No current app - this shouldn't happen, but create one as fallback
         console.warn('[Vibey] No current app found, creating one');
@@ -2561,7 +2777,8 @@ Submitted via Vibey`);
         };
         apps.push(newApp);
         currentAppId = newApp.id;
-        saveApps();
+        await storage.saveApp(newApp);
+        saveCurrentAppId();
         renderAppDropdown();
       }
     }
@@ -2692,13 +2909,23 @@ Submitted via Vibey`);
       updateAttachmentIndicator();
     };
 
-    function clearCode() {
+    async function clearCode() {
       if (confirm('This will clear all generated code and chat history for this app. Continue?')) {
         const app = getCurrentApp();
         if (app) {
+          // Delete all messages for this app from IndexedDB
+          const oldMessages = await storage.loadMessages(app.id);
+          for (const msg of oldMessages) {
+            if (msg._id) {
+              // Delete associated screenshot if any
+              // (screenshots table uses messageId as key, so just deleting is fine)
+            }
+          }
+          // Clear by deleting and re-creating app
+          await storage.deleteApp(app.id);
           app.code = '';
           app.messages = [];
-          saveApps();
+          await storage.saveApp(app);
         }
         messages = [];
         renderMessages();
@@ -2734,10 +2961,13 @@ Submitted via Vibey`);
       } else if (useWebSearch) {
         displayContent = `[Web search]\n${content}`;
       }
-      addMessage('user', displayContent, { webSearch: useWebSearch });
-      // Store screenshot data for API
-      if (screenshot) {
-        messages[messages.length - 1]._screenshot = screenshot;
+      const userMsg = await addMessage('user', displayContent, { webSearch: useWebSearch });
+      // Store screenshot data for API (in memory and IndexedDB)
+      if (screenshot && userMsg) {
+        userMsg._screenshot = screenshot;
+        if (userMsg._id) {
+          await storage.saveScreenshot(userMsg._id, screenshot);
+        }
       }
       chatInput.value = '';
       chatInput.style.height = 'auto';
@@ -2901,15 +3131,15 @@ Submitted via Vibey`);
         // Extract and apply code
         const htmlCode = extractHtmlCode(assistantMessage);
         if (htmlCode) {
-          updatePreview(htmlCode);
+          await updatePreview(htmlCode);
         }
 
         // Store text content separately from code
         const textContent = assistantMessage.replace(/```html[\s\S]*?```/g, '').trim();
-        addMessage('assistant', textContent || 'Updated', { usage, webSearch: useWebSearch, model: effectiveModel, code: htmlCode });
+        await addMessage('assistant', textContent || 'Updated', { usage, webSearch: useWebSearch, model: effectiveModel, code: htmlCode });
 
       } catch (error) {
-        addMessage('error', `Error: ${error.message}`);
+        await addMessage('error', `Error: ${error.message}`);
       } finally {
         isLoading = false;
         sendBtn.disabled = false;
