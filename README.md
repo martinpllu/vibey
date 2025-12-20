@@ -1,20 +1,23 @@
 # Vibey
 
-Vibe code in your browser.
+**Vibe code in your browser.**
 
-**[Try it live →](https://martinpllu.github.io/vibey)** (requires an [OpenRouter](https://openrouter.ai) account)
+Try it live: [https://martinpllu.github.io/vibey](https://martinpllu.github.io/vibey)
+
+(Requires an [OpenRouter](https://openrouter.ai) account for model access)
 
 ![Vibey screenshot](screenshot.png)
 
 **Features:**
-- Multiple AI models via OpenRouter (Gemini 3 Flash, Claude Opus 4.5, etc)
-- Gemini 3 Flash recommended for speed and cost
-- Multiple apps with separate chat histories
-- Token usage and cost tracking
-- Auto-attach browser errors for easy debugging
-- Attach console logs and screenshots to messages
-- Community gallery to share and discover apps
+- Use multiple AI models via OpenRouter (Gemini 3 Flash is cheap and works really well)
 - All data stored locally in your browser - nothing sent to any server except OpenRouter
+- Create multiple apps with separate chats
+- Token usage and cost tracking
+- Restore previous versions of code
+- Attach console logs and screenshots to messages for easy debugging
+- Community gallery to share and discover apps
+
+Try it at [https://martinpllu.github.io/vibey](https://martinpllu.github.io/vibey)
 
 ## Running Locally
 
