@@ -1,2 +1,3 @@
-- Add github links to the app
+- Highlight privacy
 - View source
+- security review
