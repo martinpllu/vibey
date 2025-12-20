@@ -1377,12 +1377,6 @@
           <p class="form-hint">Browse available models at <a href="https://openrouter.ai/models" target="_blank">openrouter.ai/models</a></p>
         </div>
         <div class="form-group">
-          <label class="toggle-label">
-            <input type="checkbox" id="show-cost-toggle" checked>
-            <span>Show token usage & cost</span>
-          </label>
-        </div>
-        <div class="form-group">
           <button id="clear-code-btn" style="padding: 10px 16px; background: #E8346C; color: #FFFFFF; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Space Mono', monospace; transition: all 0.15s;" onmouseover="this.style.background='#D42D5E';" onmouseout="this.style.background='#E8346C';">Clear Code & Chat</button>
         </div>
               </div>
@@ -1434,8 +1428,7 @@
       authType: 'vibey_auth_type', // 'oauth' or 'manual'
       model: 'vibey_model',
       customModel: 'vibey_custom_model',
-      panelCollapsed: 'vibey_panel_collapsed',
-      showCost: 'vibey_show_cost'
+      panelCollapsed: 'vibey_panel_collapsed'
     };
 
     // IndexedDB Storage class for apps and messages
@@ -1872,7 +1865,6 @@ The user will describe what they want, and you'll generate the complete HTML for
     const customModelInput = document.getElementById('custom-model-input');
     let previewFrame = document.getElementById('preview-frame');
     const clearCodeBtn = document.getElementById('clear-code-btn');
-    const showCostToggle = document.getElementById('show-cost-toggle');
     const webSearchBtn = document.getElementById('web-search-btn');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -2576,10 +2568,6 @@ The user will describe what they want, and you'll generate the complete HTML for
         }
       }
 
-      // Load show cost setting (default to true)
-      const showCost = localStorage.getItem(STORAGE_KEYS.showCost);
-      showCostToggle.checked = showCost === null ? true : showCost === 'true';
-
       // Event listeners
       toggle.addEventListener('click', togglePanel);
       sendBtn.addEventListener('click', sendMessage);
@@ -2621,10 +2609,6 @@ The user will describe what they want, and you'll generate the complete HTML for
         }
       });
 
-      showCostToggle.addEventListener('change', () => {
-        localStorage.setItem(STORAGE_KEYS.showCost, showCostToggle.checked);
-        renderMessages();
-      });
       modelSelect.addEventListener('change', handleModelChange);
       customModelInput.addEventListener('change', saveSettings);
       clearCodeBtn.addEventListener('click', clearCode);
@@ -2791,7 +2775,7 @@ The user will describe what they want, and you'll generate the complete HTML for
         const canRestore = messageCode && messageCode !== currentCode;
         const restoreBtn = canRestore ? `<span class="restore-btn" data-restore-index="${index}">Restore</span>` : '';
 
-        if (msg.role === 'assistant' && msg.usage && showCostToggle.checked) {
+        if (msg.role === 'assistant' && msg.usage) {
           const { prompt_tokens, completion_tokens, total_cost, cache_read_tokens, cache_write_tokens } = msg.usage;
           const costStr = total_cost != null ? `$${total_cost.toFixed(4)}` : 'N/A';
 
