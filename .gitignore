@@ -1,0 +1,6 @@
+# Secrets
+.secrets
+*.secret
+
+# OS files
+.DS_Store

@@ -5,6 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vibey - Vibe Coding Tool</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap');
+
+    :root {
+      --vibe-bg: #F5F5F5;
+      --vibe-panel: #FFFFFF;
+      --vibe-surface: #F0F0F0;
+      --vibe-border: #E0E0E0;
+      --vibe-border-dark: #CCCCCC;
+      --vibe-accent: #000000;
+      --vibe-accent-soft: #F0F0F0;
+      --vibe-text: #000000;
+      --vibe-text-dim: #666666;
+      --vibe-text-light: #888888;
+      --vibe-black: #000000;
+      --vibe-white: #FFFFFF;
+    }
+
     * {
       box-sizing: border-box;
     }
@@ -13,7 +30,8 @@
       margin: 0;
       padding: 0;
       height: 100%;
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Space Mono', 'Courier New', monospace;
+      background: var(--vibe-bg);
     }
 
     /* Preview iframe takes full page */
@@ -24,7 +42,7 @@
       width: 100%;
       height: 100%;
       border: none;
-      background: #F7F7F6;
+      background: var(--vibe-bg);
     }
 
     /* Floating toggle button */
@@ -34,27 +52,31 @@
       right: 20px;
       width: 52px;
       height: 52px;
-      border-radius: 14px;
-      background: #4A4846;
+      border-radius: 12px;
+      background: var(--vibe-accent);
       border: none;
       cursor: pointer;
-      box-shadow: 0 4px 16px rgba(74, 72, 70, 0.35);
+      box-shadow: 0 2px 8px rgba(232, 52, 108, 0.3);
       z-index: 10001;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.15s, box-shadow 0.15s;
+      transition: all 0.15s ease;
     }
 
     #vibey-toggle:hover {
       transform: translateY(-2px);
-      box-shadow: 0 6px 24px rgba(74, 72, 70, 0.45);
+      box-shadow: 0 4px 16px rgba(232, 52, 108, 0.4);
+    }
+
+    #vibey-toggle:active {
+      transform: translateY(0);
     }
 
     #vibey-toggle svg {
       width: 24px;
       height: 24px;
-      fill: white;
+      fill: var(--vibe-white);
     }
 
     /* Overlay panel */
@@ -66,20 +88,19 @@
       max-width: calc(100vw - 40px);
       height: 520px;
       max-height: calc(100vh - 120px);
-      background: rgba(250, 250, 250, 0.92);
+      background: var(--vibe-panel);
       backdrop-filter: blur(12px);
       -webkit-backdrop-filter: blur(12px);
       border-radius: 16px;
       box-shadow:
-        0 1px 3px rgba(0, 0, 0, 0.04),
-        0 4px 12px rgba(0, 0, 0, 0.06),
-        0 12px 32px rgba(0, 0, 0, 0.08);
+        0 4px 24px rgba(0, 0, 0, 0.08),
+        0 1px 2px rgba(0, 0, 0, 0.04);
       z-index: 10000;
       display: flex;
       flex-direction: column;
-      overflow: hidden;
+      overflow: visible;
       transition: opacity 0.15s, transform 0.15s;
-      border: 1px solid rgba(0, 0, 0, 0.08);
+      border: 1px solid var(--vibe-border);
     }
 
     #vibey-panel.collapsed {
@@ -90,43 +111,48 @@
 
     /* App bar */
     .app-bar {
+      position: relative;
+      z-index: 10;
       display: flex;
       align-items: center;
       gap: 8px;
       padding: 12px 14px;
-      background: rgba(74, 72, 70, 0.95);
-      color: #FFFFFF;
+      background: var(--vibe-surface);
+      color: var(--vibe-text);
+      border-bottom: 1px solid var(--vibe-border);
     }
 
     .app-name-input {
       flex: 1;
-      background: rgba(255,255,255,0.2);
-      border: 1px solid rgba(255,255,255,0.25);
+      background: var(--vibe-white);
+      border: 1px solid var(--vibe-border);
       border-radius: 8px;
-      padding: 8px 12px;
-      color: white;
-      font-size: 14px;
-      font-weight: 500;
+      padding: 9px 12px;
+      color: var(--vibe-text);
+      font-size: 13px;
+      font-weight: 700;
+      font-family: 'Space Mono', monospace;
       min-width: 0;
     }
 
     .app-name-input::placeholder {
-      color: rgba(255,255,255,0.7);
+      color: var(--vibe-text-light);
+      font-weight: 400;
     }
 
     .app-name-input:focus {
       outline: none;
-      background: rgba(255,255,255,0.25);
-      border-color: rgba(255,255,255,0.4);
+      border-color: var(--vibe-accent);
+      box-shadow: 0 0 0 3px var(--vibe-accent-soft);
     }
 
     .app-bar-btn {
-      background: rgba(255,255,255,0.15);
-      border: 1px solid rgba(255,255,255,0.2);
+      background: var(--vibe-white);
+      border: 1px solid var(--vibe-border);
       border-radius: 8px;
-      padding: 7px;
+      padding: 8px;
       cursor: pointer;
-      color: white;
+      color: var(--vibe-text-dim);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -134,8 +160,9 @@
     }
 
     .app-bar-btn:hover {
-      background: rgba(255,255,255,0.25);
-      border-color: rgba(255,255,255,0.3);
+      background: var(--vibe-accent-soft);
+      border-color: var(--vibe-accent);
+      color: var(--vibe-accent);
     }
 
     .app-bar-btn svg {
@@ -153,9 +180,10 @@
       top: 100%;
       right: 0;
       margin-top: 6px;
-      background: white;
-      border-radius: 10px;
-      box-shadow: 0 4px 16px rgba(0,0,0,0.12), 0 0 0 1px rgba(0,0,0,0.05);
+      background: var(--vibe-white);
+      border-radius: 12px;
+      border: 1px solid var(--vibe-border);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
       min-width: 200px;
       max-height: 320px;
       overflow-y: auto;
@@ -170,30 +198,32 @@
     .app-dropdown-actions {
       display: flex;
       gap: 6px;
-      padding: 8px;
-      border-bottom: 1px solid #e5e7eb;
+      padding: 10px;
+      border-bottom: 1px solid var(--vibe-border);
     }
 
     .app-dropdown-action-btn {
       flex: 1;
       padding: 8px 10px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--vibe-border);
       border-radius: 6px;
-      background: #f9fafb;
-      color: #374151;
-      font-size: 12px;
+      background: var(--vibe-surface);
+      color: var(--vibe-text);
+      font-size: 11px;
       font-weight: 500;
+      font-family: 'Space Mono', monospace;
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
       gap: 4px;
-      transition: background 0.15s, border-color 0.15s;
+      transition: all 0.15s;
     }
 
     .app-dropdown-action-btn:hover {
-      background: #f3f4f6;
-      border-color: #d1d5db;
+      background: var(--vibe-accent-soft);
+      border-color: var(--vibe-accent);
+      color: var(--vibe-accent);
     }
 
     .app-dropdown-action-btn svg {
@@ -204,13 +234,14 @@
     .app-dropdown-item {
       padding: 10px 12px;
       cursor: pointer;
-      color: #374151;
+      color: var(--vibe-text);
       font-size: 13px;
-      border-bottom: 1px solid #f3f4f6;
+      font-family: 'Space Mono', monospace;
+      border-bottom: 1px solid var(--vibe-border);
       display: flex;
       align-items: center;
       justify-content: space-between;
-      transition: background 0.1s;
+      transition: all 0.1s;
     }
 
     .app-dropdown-item:last-child {
@@ -218,25 +249,25 @@
     }
 
     .app-dropdown-item:hover {
-      background: #f9fafb;
+      background: var(--vibe-surface);
     }
 
     .app-dropdown-item.active {
-      background: #F2F2F1;
-      color: #5C5856;
-      font-weight: 500;
+      background: var(--vibe-accent-soft);
+      color: var(--vibe-accent);
+      font-weight: 700;
     }
 
     .app-dropdown-divider {
       height: 1px;
-      background: #e5e7eb;
+      background: var(--vibe-border);
       margin: 0;
     }
 
     .app-delete-btn {
       background: none;
       border: none;
-      color: #9ca3af;
+      color: var(--vibe-text-light);
       cursor: pointer;
       padding: 2px;
       display: flex;
@@ -249,7 +280,7 @@
     }
 
     .app-delete-btn:hover {
-      color: #ef4444;
+      color: var(--vibe-accent);
     }
 
     .app-delete-btn svg {
@@ -259,22 +290,27 @@
 
     /* Panel header with tabs */
     .panel-header {
+      position: relative;
+      z-index: 1;
       display: flex;
-      background: transparent;
-      border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+      background: var(--vibe-white);
+      border-bottom: 1px solid var(--vibe-border);
+      overflow: hidden;
     }
 
     .tab-btn {
       flex: 1;
-      padding: 13px 16px;
+      padding: 12px 16px;
       border: none;
       background: transparent;
       cursor: pointer;
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 500;
-      color: #9ca3af;
-      transition: color 0.15s;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-dim);
+      transition: all 0.15s;
       outline: none;
+      position: relative;
     }
 
     .tab-btn:focus {
@@ -282,13 +318,23 @@
     }
 
     .tab-btn:hover {
-      color: #4A4846;
+      color: var(--vibe-text);
     }
 
     .tab-btn.active {
-      color: #4A4846;
-      background: transparent;
-      box-shadow: inset 0 -2px 0 #4A4846;
+      color: var(--vibe-accent);
+      font-weight: 700;
+    }
+
+    .tab-btn.active::after {
+      content: '';
+      position: absolute;
+      bottom: -1px;
+      left: 16px;
+      right: 16px;
+      height: 2px;
+      background: var(--vibe-accent);
+      border-radius: 2px;
     }
 
     /* Tab content */
@@ -297,6 +343,8 @@
       flex: 1;
       flex-direction: column;
       overflow: hidden;
+      position: relative;
+      z-index: 1;
     }
 
     .tab-content.active {
@@ -307,6 +355,7 @@
     .settings-content {
       padding: 16px;
       overflow-y: auto;
+      background: var(--vibe-white);
     }
 
     .form-group {
@@ -318,33 +367,46 @@
       margin-bottom: 6px;
       font-size: 11px;
       font-weight: 600;
-      color: #9ca3af;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-dim);
       text-transform: uppercase;
-      letter-spacing: 0.05em;
+      letter-spacing: 0.5px;
     }
 
     .form-group input,
     .form-group select {
       width: 100%;
       padding: 10px 12px;
-      border: 1px solid #e5e7eb;
-      border-radius: 10px;
-      font-size: 14px;
-      transition: border-color 0.15s, box-shadow 0.15s;
-      background: #fff;
+      border: 1px solid var(--vibe-border);
+      border-radius: 8px;
+      font-size: 13px;
+      font-family: 'Space Mono', monospace;
+      transition: all 0.15s;
+      background: var(--vibe-white);
+      color: var(--vibe-text);
     }
 
     .form-group input:focus,
     .form-group select:focus {
       outline: none;
-      border-color: #5C5856;
-      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+      border-color: var(--vibe-accent);
+      box-shadow: 0 0 0 3px var(--vibe-accent-soft);
+    }
+
+    .form-group select {
+      cursor: pointer;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237A7A7A' stroke-width='2'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 12px center;
+      padding-right: 36px;
     }
 
     .form-hint {
-      font-size: 12px;
-      color: #6b7280;
-      margin-top: 4px;
+      font-size: 11px;
+      color: var(--vibe-text-light);
+      margin-top: 5px;
+      font-family: 'Space Mono', monospace;
     }
 
     /* Chat tab */
@@ -355,42 +417,45 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      background: var(--vibe-white);
     }
 
     .message {
       max-width: 85%;
       padding: 10px 14px;
-      border-radius: 14px;
-      font-size: 14px;
-      line-height: 1.45;
+      border-radius: 12px;
+      font-size: 13px;
+      line-height: 1.5;
+      font-family: 'Space Mono', monospace;
     }
 
     .message.user {
       align-self: flex-end;
-      background: #4A4846;
-      color: white;
+      background: var(--vibe-accent);
+      color: var(--vibe-white);
       border-bottom-right-radius: 4px;
     }
 
     .message.assistant {
       align-self: flex-start;
-      background: rgba(74, 72, 70, 0.08);
-      color: #374151;
+      background: var(--vibe-surface);
+      color: var(--vibe-text);
       border-bottom-left-radius: 4px;
     }
 
     .message.error {
-      background: #fef2f2;
-      color: #dc2626;
-      border: 1px solid #fecaca;
+      background: var(--vibe-accent-soft);
+      color: var(--vibe-accent);
+      border: 1px solid var(--vibe-accent);
     }
 
     .message-usage {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
-      font-size: 11px;
-      color: #9ca3af;
+      font-size: 10px;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-light);
       margin-top: 6px;
       padding-top: 6px;
       border-top: 1px solid rgba(0,0,0,0.06);
@@ -401,29 +466,29 @@
     }
 
     .message-usage .cache-info {
-      color: #10b981;
-      font-weight: 500;
+      color: #059669;
+      font-weight: 600;
     }
 
     .message-usage .web-search-info {
-      color: #5C5856;
-      font-weight: 500;
+      color: var(--vibe-text-dim);
+      font-weight: 600;
     }
 
     .message-usage .model-info {
-      color: #5C5856;
-      font-weight: 500;
+      color: var(--vibe-text-dim);
+      font-weight: 600;
     }
 
     .message-usage .restore-btn {
-      color: #f59e0b;
+      color: #D97706;
       cursor: pointer;
       margin-left: auto;
+      font-weight: 600;
     }
 
     .message-usage .restore-btn:hover {
-      color: #d97706;
-      text-decoration: underline;
+      color: var(--vibe-accent);
     }
 
     .toggle-label {
@@ -431,19 +496,20 @@
       align-items: center;
       gap: 10px;
       cursor: pointer;
-      font-size: 14px;
-      color: #374151;
+      font-size: 13px;
+      color: var(--vibe-text);
+      font-family: 'Space Mono', monospace;
     }
 
     .toggle-label input[type="checkbox"] {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
       cursor: pointer;
-      accent-color: #5C5856;
+      accent-color: var(--vibe-accent);
     }
 
     .info-icon {
-      color: #5C5856;
+      color: var(--vibe-text-dim);
       cursor: help;
       font-size: 14px;
       margin-left: 4px;
@@ -451,13 +517,14 @@
 
     .info-tooltip {
       display: none;
-      background: #1e293b;
-      color: #e2e8f0;
+      background: var(--vibe-text);
+      color: var(--vibe-white);
       padding: 12px;
       border-radius: 8px;
-      font-size: 12px;
+      font-size: 11px;
       line-height: 1.5;
       margin-top: 8px;
+      font-family: 'Space Mono', monospace;
     }
 
     .info-tooltip.visible {
@@ -465,14 +532,15 @@
     }
 
     .info-tooltip a {
-      color: #9A9896;
+      color: #FCD34D;
     }
 
     .message.system {
       align-self: center;
-      background: #ecfdf5;
+      background: #ECFDF5;
       color: #059669;
       font-size: 12px;
+      border-radius: 8px;
     }
 
     .chat-input-area {
@@ -480,6 +548,7 @@
       display: flex;
       align-items: flex-end;
       gap: 8px;
+      background: var(--vibe-white);
     }
 
     .input-wrapper {
@@ -498,44 +567,56 @@
     .chat-input-area textarea {
       flex: 1;
       padding: 10px 12px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--vibe-border);
       border-radius: 10px;
-      font-size: 14px;
+      font-size: 13px;
       resize: none;
-      font-family: inherit;
+      font-family: 'Space Mono', monospace;
       min-height: 44px;
       max-height: 120px;
-      transition: border-color 0.15s, box-shadow 0.15s;
+      transition: all 0.15s;
+      background: var(--vibe-white);
+      color: var(--vibe-text);
+    }
+
+    .chat-input-area textarea::placeholder {
+      color: var(--vibe-text-light);
     }
 
     .chat-input-area textarea:focus {
       outline: none;
-      border-color: #5C5856;
-      box-shadow: 0 0 0 3px rgba(0, 0, 0, 0.08);
+      border-color: var(--vibe-accent);
+      box-shadow: 0 0 0 3px var(--vibe-accent-soft);
     }
 
     .send-btn {
       padding: 0 18px;
       height: 44px;
-      background: #4A4846;
-      color: white;
+      background: var(--vibe-accent);
+      color: var(--vibe-white);
       border: none;
       border-radius: 10px;
       cursor: pointer;
-      font-weight: 500;
-      font-size: 14px;
-      transition: opacity 0.15s, transform 0.15s;
+      font-weight: 600;
+      font-size: 13px;
+      font-family: 'Space Mono', monospace;
+      transition: all 0.15s;
       flex-shrink: 0;
     }
 
     .send-btn:hover {
-      opacity: 0.9;
+      background: #D42D5E;
       transform: translateY(-1px);
+    }
+
+    .send-btn:active {
+      transform: translateY(0);
     }
 
     .send-btn:disabled {
       opacity: 0.5;
       cursor: not-allowed;
+      transform: none;
     }
 
     /* Toolbar buttons */
@@ -544,47 +625,49 @@
       align-items: center;
       gap: 8px;
       padding: 8px 12px 0;
+      background: var(--vibe-white);
     }
 
     .toolbar-btn {
-      padding: 6px 12px;
-      border: 1px solid #e5e7eb;
+      padding: 6px 10px;
+      border: 1px solid var(--vibe-border);
       border-radius: 6px;
-      background: white;
-      font-size: 12px;
+      background: var(--vibe-white);
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
       cursor: pointer;
-      color: #4b5563;
-      transition: background 0.15s, border-color 0.15s;
+      color: var(--vibe-text-dim);
+      transition: all 0.15s;
     }
 
     .toolbar-btn:hover {
-      background: #f9fafb;
-      border-color: #d1d5db;
+      background: var(--vibe-surface);
+      border-color: var(--vibe-border-dark);
     }
 
     .toolbar-btn:disabled {
-      opacity: 0.5;
+      opacity: 0.4;
       cursor: not-allowed;
     }
 
     .toolbar-btn.error-btn {
-      background: #fef2f2;
-      border-color: #fecaca;
-      color: #dc2626;
+      background: var(--vibe-accent-soft);
+      border-color: var(--vibe-accent);
+      color: var(--vibe-accent);
     }
 
     .toolbar-btn.error-btn:hover {
-      background: #fee2e2;
+      background: #FFE0E8;
     }
 
     .toolbar-btn.log-btn {
-      background: #ecfdf5;
-      border-color: #a7f3d0;
+      background: #ECFDF5;
+      border-color: #A7F3D0;
       color: #059669;
     }
 
     .toolbar-btn.log-btn:hover {
-      background: #d1fae5;
+      background: #D1FAE5;
     }
 
     /* Web Search Toggle */
@@ -593,37 +676,38 @@
       align-items: center;
       gap: 6px;
       padding: 4px 10px;
-      border: 1px solid #e5e7eb;
+      border: 1px solid var(--vibe-border);
       border-radius: 20px;
-      background: #f9fafb;
-      font-size: 12px;
+      background: var(--vibe-surface);
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
       cursor: pointer;
-      color: #6b7280;
+      color: var(--vibe-text-dim);
       transition: all 0.15s;
       margin-left: auto;
     }
 
     .web-search-toggle:hover {
-      border-color: #d1d5db;
+      border-color: var(--vibe-border-dark);
     }
 
     .web-search-toggle.active {
-      background: #EAEAE9;
-      border-color: rgba(102,126,234,0.3);
-      color: #5C5856;
+      background: var(--vibe-accent-soft);
+      border-color: var(--vibe-accent);
+      color: var(--vibe-accent);
     }
 
     .web-search-toggle .toggle-track {
       width: 28px;
       height: 16px;
-      background: #d1d5db;
+      background: var(--vibe-border);
       border-radius: 8px;
       position: relative;
       transition: background 0.15s;
     }
 
     .web-search-toggle.active .toggle-track {
-      background: #4A4846;
+      background: var(--vibe-accent);
     }
 
     .web-search-toggle .toggle-thumb {
@@ -647,23 +731,24 @@
       align-items: center;
       gap: 4px;
       padding: 4px 8px;
-      background: #F2F2F1;
-      border: 1px solid #ddd6fe;
+      background: var(--vibe-accent-soft);
+      border: 1px solid var(--vibe-accent);
       border-radius: 6px;
       font-size: 11px;
-      color: #4A4846;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-accent);
       cursor: pointer;
       white-space: nowrap;
     }
 
     #attachment-indicator:hover {
-      background: #EAEAE9;
+      background: #FFE0E8;
     }
 
     #attachment-indicator .remove-btn {
       background: none;
       border: none;
-      color: #4A4846;
+      color: var(--vibe-accent);
       cursor: pointer;
       font-size: 14px;
       padding: 0;
@@ -672,7 +757,7 @@
     }
 
     #attachment-indicator .remove-btn:hover {
-      color: #dc2626;
+      color: #D42D5E;
     }
 
     /* Screenshot preview modal */
@@ -700,9 +785,12 @@
       align-items: center;
       gap: 8px;
       padding: 10px 14px;
-      background: #f3f4f6;
-      border-radius: 14px;
+      background: var(--vibe-surface);
+      border-radius: 12px;
       align-self: flex-start;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      color: var(--vibe-text-dim);
     }
 
     .loading-dots {
@@ -713,7 +801,7 @@
     .loading-dots span {
       width: 6px;
       height: 6px;
-      background: #5C5856;
+      background: var(--vibe-accent);
       border-radius: 50%;
       animation: bounce 1.4s infinite ease-in-out;
     }
@@ -733,9 +821,10 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: #9ca3af;
+      color: var(--vibe-text-light);
       text-align: center;
       padding: 24px;
+      background: var(--vibe-white);
     }
 
     .empty-state svg {
@@ -743,17 +832,19 @@
       height: 40px;
       margin-bottom: 12px;
       opacity: 0.4;
+      fill: var(--vibe-accent);
     }
 
     .empty-state p {
-      font-size: 14px;
+      font-size: 13px;
       line-height: 1.5;
+      font-family: 'Space Mono', monospace;
     }
 
     /* API key setup */
     .api-key-setup {
-      background: #F5F5F4;
-      border: 1px solid rgba(102,126,234,0.15);
+      background: var(--vibe-surface);
+      border: 1px solid var(--vibe-border);
       border-radius: 12px;
       padding: 16px;
       margin-bottom: 16px;
@@ -761,29 +852,32 @@
 
     .api-key-setup h3 {
       margin: 0 0 10px 0;
-      color: #5C5856;
-      font-size: 15px;
+      color: var(--vibe-text);
+      font-size: 14px;
       font-weight: 600;
+      font-family: 'Space Mono', monospace;
     }
 
     .api-key-setup p {
       margin: 0 0 12px 0;
-      font-size: 13px;
-      color: #6b7280;
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-dim);
       line-height: 1.5;
     }
 
     .api-key-setup ol {
       margin: 0;
       padding-left: 20px;
-      font-size: 13px;
-      color: #6b7280;
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-dim);
       line-height: 1.8;
     }
 
     .api-key-setup a {
-      color: #5C5856;
-      font-weight: 500;
+      color: var(--vibe-accent);
+      font-weight: 600;
     }
 
     .privacy-note {
@@ -799,19 +893,24 @@
       gap: 8px;
       width: 100%;
       padding: 12px 16px;
-      background: #4A4846;
-      color: white;
+      background: var(--vibe-accent);
+      color: var(--vibe-white);
       border: none;
       border-radius: 10px;
-      font-size: 14px;
-      font-weight: 500;
+      font-size: 13px;
+      font-weight: 600;
+      font-family: 'Space Mono', monospace;
       cursor: pointer;
-      transition: opacity 0.15s, transform 0.15s;
+      transition: all 0.15s;
     }
 
     .oauth-btn:hover {
-      opacity: 0.9;
+      background: #D42D5E;
       transform: translateY(-1px);
+    }
+
+    .oauth-btn:active {
+      transform: translateY(0);
     }
 
     .oauth-btn:disabled {
@@ -830,18 +929,19 @@
       align-items: center;
       gap: 8px;
       padding: 10px 12px;
-      background: #ecfdf5;
-      border: 1px solid #a7f3d0;
+      background: #ECFDF5;
+      border: 1px solid #A7F3D0;
       border-radius: 10px;
-      font-size: 13px;
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
       color: #059669;
       margin-bottom: 12px;
     }
 
     .auth-status.oauth {
-      background: #F2F2F1;
-      border-color: rgba(102,126,234,0.2);
-      color: #5C5856;
+      background: var(--vibe-accent-soft);
+      border-color: var(--vibe-accent);
+      color: var(--vibe-accent);
     }
 
     .auth-status button {
@@ -852,8 +952,9 @@
       border-radius: 6px;
       color: inherit;
       font-size: 11px;
+      font-family: 'Space Mono', monospace;
       cursor: pointer;
-      transition: background 0.15s;
+      transition: all 0.15s;
     }
 
     .auth-status button:hover {
@@ -873,8 +974,8 @@
     }
 
     .submit-modal-content {
-      background: white;
-      border-radius: 14px;
+      background: var(--vibe-white);
+      border-radius: 16px;
       padding: 24px;
       max-width: 400px;
       text-align: center;
@@ -883,20 +984,23 @@
 
     .submit-modal-content h3 {
       margin: 0 0 10px 0;
-      font-size: 17px;
+      font-size: 16px;
       font-weight: 600;
-      color: #1f2937;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text);
     }
 
     .submit-modal-content p {
       margin: 0 0 12px 0;
-      font-size: 14px;
-      color: #6b7280;
+      font-size: 13px;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-dim);
+      line-height: 1.5;
     }
 
     .submit-modal-success {
       color: #059669;
-      font-weight: 500;
+      font-weight: 600;
     }
 
     .submit-modal-buttons {
@@ -909,29 +1013,30 @@
     .submit-modal-btn {
       padding: 10px 18px;
       border-radius: 8px;
-      border: 1px solid #e5e7eb;
-      background: white;
+      border: 1px solid var(--vibe-border);
+      background: var(--vibe-white);
       cursor: pointer;
       text-decoration: none;
-      color: #374151;
-      font-size: 14px;
+      color: var(--vibe-text);
+      font-size: 13px;
       font-weight: 500;
-      transition: background 0.15s, border-color 0.15s;
+      font-family: 'Space Mono', monospace;
+      transition: all 0.15s;
     }
 
     .submit-modal-btn:hover {
-      background: #f9fafb;
-      border-color: #d1d5db;
+      background: var(--vibe-surface);
+      border-color: var(--vibe-border-dark);
     }
 
     .submit-modal-btn.primary {
-      background: #4A4846;
-      color: white;
+      background: var(--vibe-accent);
+      color: var(--vibe-white);
       border-color: transparent;
     }
 
     .submit-modal-btn.primary:hover {
-      opacity: 0.9;
+      background: #D42D5E;
     }
 
     /* Community Tab */
@@ -941,38 +1046,42 @@
       flex-direction: column;
       gap: 8px;
       overflow-y: auto;
+      background: var(--vibe-white);
     }
 
     .community-card {
-      background: #f9fafb;
-      border: 1px solid #f3f4f6;
+      background: var(--vibe-surface);
+      border: 1px solid var(--vibe-border);
       border-radius: 10px;
       padding: 12px;
       cursor: pointer;
-      transition: background 0.15s, border-color 0.15s;
+      transition: all 0.15s;
     }
 
     .community-card:hover {
-      background: #f3f4f6;
-      border-color: #e5e7eb;
+      border-color: var(--vibe-accent);
+      background: var(--vibe-accent-soft);
     }
 
     .community-card h4 {
       margin: 0 0 4px 0;
-      font-size: 14px;
+      font-size: 13px;
       font-weight: 600;
-      color: #1f2937;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text);
     }
 
     .community-card .author {
-      font-size: 12px;
-      color: #9ca3af;
+      font-size: 11px;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-light);
       margin-bottom: 6px;
     }
 
     .community-card .description {
-      font-size: 13px;
-      color: #6b7280;
+      font-size: 12px;
+      font-family: 'Space Mono', monospace;
+      color: var(--vibe-text-dim);
       margin: 0;
       line-height: 1.4;
     }
@@ -980,23 +1089,47 @@
     .community-empty {
       text-align: center;
       padding: 40px 20px;
-      color: #9ca3af;
+      color: var(--vibe-text-light);
+      font-family: 'Space Mono', monospace;
+      background: var(--vibe-white);
     }
 
     .community-empty p {
       margin: 0 0 8px 0;
+      font-size: 13px;
     }
 
     .community-error {
       text-align: center;
       padding: 40px;
-      color: #ef4444;
+      color: var(--vibe-accent);
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      background: var(--vibe-white);
+    }
+
+    /* Scrollbar styling */
+    ::-webkit-scrollbar {
+      width: 8px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: var(--vibe-border);
+      border-radius: 4px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: var(--vibe-border-dark);
     }
   </style>
 </head>
 <body>
   <!-- Preview iframe - sandboxed to prevent access to parent window -->
-  <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals" srcdoc="<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>"></iframe>
+  <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals" srcdoc="<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui,sans-serif;background:#FAFAF8;color:#9A9A9A;'><div style='text-align:center;'><p style='font-size:18px;margin:0 0 8px 0;'>🎨</p><p style='font-size:14px;margin:0;'>Your app will appear here</p></div></body></html>"></iframe>
 
   <!-- Toggle button -->
   <button id="vibey-toggle" title="Toggle Vibey panel">
@@ -1110,7 +1243,7 @@
           </div>
         </div>
         <div class="form-group">
-          <button id="clear-code-btn" style="padding: 8px 14px; background: #ef4444; color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; transition: background 0.15s;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">Clear Code & Chat</button>
+          <button id="clear-code-btn" style="padding: 10px 16px; background: #E8346C; color: #FFFFFF; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Space Mono', monospace; transition: all 0.15s;" onmouseover="this.style.background='#D42D5E';" onmouseout="this.style.background='#E8346C';">Clear Code & Chat</button>
         </div>
       </div>
     </div>
@@ -1404,7 +1537,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     const sendBtn = document.getElementById('send-btn');
     const modelSelect = document.getElementById('model-select');
     const customModelInput = document.getElementById('custom-model-input');
-    const previewFrame = document.getElementById('preview-frame');
+    let previewFrame = document.getElementById('preview-frame');
     const clearCodeBtn = document.getElementById('clear-code-btn');
     const showCostToggle = document.getElementById('show-cost-toggle');
     const usePlaceholdersToggle = document.getElementById('use-placeholders-toggle');
@@ -1456,6 +1589,18 @@ The user will describe what they want, and you'll generate the complete HTML for
       return updateAuthUI();
     }
 
+    // Helper to replace iframe (fixes Chrome sandbox + srcdoc rendering bug)
+    const EMPTY_PREVIEW_HTML = "<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>";
+
+    function replacePreviewFrame(srcdoc) {
+      const newIframe = document.createElement('iframe');
+      newIframe.id = 'preview-frame';
+      newIframe.sandbox = 'allow-scripts allow-forms allow-modals';
+      newIframe.srcdoc = srcdoc;
+      previewFrame.parentNode.replaceChild(newIframe, previewFrame);
+      previewFrame = newIframe;
+    }
+
     // App management functions
     function generateId() {
       return Date.now().toString(36) + Math.random().toString(36).substr(2);
@@ -1473,18 +1618,41 @@ The user will describe what they want, and you'll generate the complete HTML for
     function loadApps() {
       const savedApps = localStorage.getItem(STORAGE_KEYS.apps);
       if (savedApps) {
-        apps = JSON.parse(savedApps);
+        try {
+          const parsed = JSON.parse(savedApps);
+          // Validate it's an array
+          if (Array.isArray(parsed)) {
+            // Filter to only valid app objects (must have id)
+            apps = parsed.filter(a => a && typeof a === 'object' && a.id);
+            // Ensure each app has required properties
+            apps.forEach(a => {
+              if (typeof a.name !== 'string') a.name = 'Untitled';
+              if (typeof a.code !== 'string') a.code = '';
+              if (!Array.isArray(a.messages)) a.messages = [];
+            });
+          }
+        } catch (e) {
+          console.warn('[Vibey] Failed to parse saved apps, starting fresh');
+          apps = [];
+        }
       }
 
       // Migrate old data if no apps exist
       if (apps.length === 0) {
         const oldCode = localStorage.getItem('vibey_code');
         const oldMessages = localStorage.getItem('vibey_messages');
+        let migratedMessages = [];
+        try {
+          if (oldMessages) migratedMessages = JSON.parse(oldMessages);
+          if (!Array.isArray(migratedMessages)) migratedMessages = [];
+        } catch (e) {
+          migratedMessages = [];
+        }
         apps.push({
           id: generateId(),
           name: 'My App',
           code: oldCode || '',
-          messages: oldMessages ? JSON.parse(oldMessages) : []
+          messages: migratedMessages
         });
       }
 
@@ -1512,7 +1680,7 @@ The user will describe what they want, and you'll generate the complete HTML for
         if (newApp.code) {
           updatePreview(newApp.code);
         } else {
-          previewFrame.srcdoc = "<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>";
+          replacePreviewFrame(EMPTY_PREVIEW_HTML);
         }
         renderMessages();
       }
@@ -2350,6 +2518,12 @@ Submitted via Vibey`);
     }
 
     function updatePreview(code) {
+      // Validate code is a non-empty string
+      if (!code || typeof code !== 'string') {
+        console.warn('[Vibey] updatePreview called with invalid code:', typeof code);
+        return;
+      }
+
       // Clear captured errors and logs when new code is loaded
       capturedErrors = [];
       capturedLogs = [];
@@ -2366,13 +2540,27 @@ Submitted via Vibey`);
         injectedCode = code + VIBEY_BRIDGE_SCRIPT;
       }
 
-      previewFrame.srcdoc = injectedCode;
+      // Replace iframe element to force Chrome to render sandboxed srcdoc updates
+      replacePreviewFrame(injectedCode);
 
       // Save original code (without bridge)
       const app = getCurrentApp();
       if (app) {
         app.code = code;
         saveApps();
+      } else {
+        // No current app - this shouldn't happen, but create one as fallback
+        console.warn('[Vibey] No current app found, creating one');
+        const newApp = {
+          id: generateId(),
+          name: 'My App',
+          code: code,
+          messages: messages || []
+        };
+        apps.push(newApp);
+        currentAppId = newApp.id;
+        saveApps();
+        renderAppDropdown();
       }
     }
 
@@ -2512,7 +2700,7 @@ Submitted via Vibey`);
         }
         messages = [];
         renderMessages();
-        previewFrame.srcdoc = "<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:sans-serif;color:#888;'><div style='text-align:center'><h2>🎨 Your app will appear here</h2><p>Start chatting to create something!</p></div></body></html>";
+        replacePreviewFrame(EMPTY_PREVIEW_HTML);
       }
     }
 
