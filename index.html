@@ -1319,6 +1319,7 @@
       <button class="tab-btn active" data-tab="chat">Chat</button>
       <button class="tab-btn" data-tab="settings">Settings</button>
       <button class="tab-btn" data-tab="community">Community</button>
+      <span style="margin-left: auto; font-size: 10px; color: var(--vibe-text-light); opacity: 0.7;">Esc to toggle</span>
     </div>
 
     <!-- Chat tab -->
@@ -2238,11 +2239,13 @@ The user will describe what they want, and you'll generate the complete HTML for
         const apps = parseCSV(csvText);
 
         // CTA banner
+        const currentApp = getCurrentApp();
+        const appNameDisplay = currentApp ? `'${escapeHtml(currentApp.name)}'` : 'your app';
         const ctaHtml = `
           <div class="community-cta" id="community-cta">
             <span class="community-cta-arrow">→</span>
             <p class="community-cta-title">Submit your app</p>
-            <p class="community-cta-desc">Share what you've built with the community</p>
+            <p class="community-cta-desc">Share ${appNameDisplay} with the community</p>
           </div>`;
 
         if (apps.length === 0) {
@@ -2359,9 +2362,10 @@ The user will describe what they want, and you'll generate the complete HTML for
 
         apps.push(newApp);
         await storage.saveApp(newApp);
-        // Save imported messages
+        // Save imported messages (strip _id to generate new ones)
         for (const msg of chatMessages) {
-          await storage.saveMessage(newApp.id, msg);
+          const { _id, ...msgWithoutId } = msg;
+          await storage.saveMessage(newApp.id, msgWithoutId);
         }
         await switchToApp(newApp.id);
 
@@ -2415,9 +2419,10 @@ The user will describe what they want, and you'll generate the complete HTML for
           apps.push(newApp);
           currentAppId = newApp.id;
           await storage.saveApp(newApp);
-          // Save imported messages
+          // Save imported messages (strip _id to generate new ones)
           for (const msg of chatMessages) {
-            await storage.saveMessage(newApp.id, msg);
+            const { _id, ...msgWithoutId } = msg;
+            await storage.saveMessage(newApp.id, msgWithoutId);
           }
           saveCurrentAppId();
           // Clear the URL parameter
@@ -2522,9 +2527,10 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       apps.push(newApp);
       await storage.saveApp(newApp);
-      // Save imported messages
+      // Save imported messages (strip _id to generate new ones)
       for (const msg of chatMessages) {
-        await storage.saveMessage(newApp.id, msg);
+        const { _id, ...msgWithoutId } = msg;
+        await storage.saveMessage(newApp.id, msgWithoutId);
       }
       await switchToApp(newApp.id);
       hideImportModal();
@@ -2621,9 +2627,14 @@ The user will describe what they want, and you'll generate the complete HTML for
       window.addEventListener('message', (e) => {
         if (e.source !== previewFrame?.contentWindow) return;
         if (e.data?.type === 'vibey-error') {
-          // Auto-attach errors so they're ready to send with next message
+          // Auto-attach errors so they're ready to send with next message (cap at 50)
+          if (errorCollectionPaused) return;
           if (!pendingErrors) pendingErrors = [];
-          pendingErrors.push({ message: e.data.message, line: e.data.line });
+          if (pendingErrors.length < 50) {
+            pendingErrors.push({ message: e.data.message, line: e.data.line });
+          } else if (pendingErrors.length === 50) {
+            pendingErrors.push({ message: '...and more errors (truncated)', line: null });
+          }
           updateAttachmentIndicator();
         } else if (e.data?.type === 'vibey-log') {
           capturedLogs.push({ level: e.data.level, message: e.data.message });
@@ -2915,6 +2926,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       // Clear captured errors and logs when new code is loaded
       capturedErrors = [];
       capturedLogs = [];
+      errorCollectionPaused = false;  // Resume error collection for new code
       updateErrorButton();
       updateLogButton();
 
@@ -2990,6 +3002,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     let pendingScreenshot = null;
     let pendingErrors = null;  // Array of errors to attach
     let pendingLogs = null;    // Array of logs to attach
+    let errorCollectionPaused = false;  // Pause error collection when user dismisses errors
 
     // Capture screenshot and attach it (don't send immediately)
     async function captureScreenshot() {
@@ -3050,9 +3063,11 @@ The user will describe what they want, and you'll generate the complete HTML for
 
         if (pendingErrors) {
           const count = pendingErrors.length;
+          const isCapped = count === 51;
+          const displayCount = isCapped ? '50+' : count;
           html += `<div class="attachment-chip error-chip" onclick="showErrorsPreview()">
             <span class="chip-icon">⚠</span>
-            <span>${count} Error${count > 1 ? 's' : ''}</span>
+            <span>${displayCount} Error${count > 1 ? 's' : ''}</span>
             <button class="remove-btn" onclick="event.stopPropagation(); clearPendingErrors();">&times;</button>
           </div>`;
         }
@@ -3080,9 +3095,11 @@ The user will describe what they want, and you'll generate the complete HTML for
       }
     }
 
-    // Show screenshot preview modal
-    function showScreenshotModal() {
+    // Show screenshot preview modal (global for onclick)
+    window.showScreenshotModal = function() {
       if (!pendingScreenshot) return;
+      // Remove existing modal if any
+      document.getElementById('screenshot-modal')?.remove();
       const modal = document.createElement('div');
       modal.id = 'screenshot-modal';
       modal.innerHTML = `<img src="${pendingScreenshot}" alt="Screenshot preview">`;
@@ -3097,7 +3114,7 @@ The user will describe what they want, and you'll generate the complete HTML for
         }
       };
       document.addEventListener('keydown', closeOnEscape);
-    }
+    };
 
     // Clear pending screenshot (global for onclick)
     window.clearScreenshot = function() {
@@ -3108,6 +3125,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     // Clear pending errors (global for onclick)
     window.clearPendingErrors = function() {
       pendingErrors = null;
+      errorCollectionPaused = true;  // Pause until next code update
       updateAttachmentIndicator();
     };
 
@@ -3123,11 +3141,13 @@ The user will describe what they want, and you'll generate the complete HTML for
       const modal = document.createElement('div');
       modal.id = 'preview-modal';
       modal.className = 'preview-modal';
+      const isCapped = pendingErrors.length === 51;
+      const displayCount = isCapped ? '50+' : pendingErrors.length;
       const errorList = pendingErrors.map(e => `• ${e.message}${e.line ? ` (line ${e.line})` : ''}`).join('\n');
       modal.innerHTML = `
         <div class="preview-content error-preview">
           <div class="preview-header">
-            <span class="preview-title">⚠ Errors (${pendingErrors.length})</span>
+            <span class="preview-title">⚠ Errors (${displayCount})</span>
             <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
           </div>
           <pre class="preview-body">${errorList}</pre>
