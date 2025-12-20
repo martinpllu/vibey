@@ -2,12 +2,11 @@
 
 Vibe code in your browser.
 
-**[Try it live →](https://martinpllu.github.io/vibey)**
+**[Try it live →](https://martinpllu.github.io/vibey)** (requires an [OpenRouter](https://openrouter.ai) account)
 
 Describe what you want, and iterate on your app in real-time. The generated code renders in an iframe while you chat.
 
 **Features:**
-- Sign in with OpenRouter (OAuth)
 - Multiple AI models via OpenRouter (Gemini 3 Flash, Claude Opus 4.5, etc)
 - Gemini 3 Flash recommended for speed and cost
 - Multiple apps with separate chat histories
@@ -15,7 +14,7 @@ Describe what you want, and iterate on your app in real-time. The generated code
 - Auto-attach browser errors for easy debugging
 - Attach console logs and screenshots to messages
 - Community gallery to share and discover apps
-- Everything persists in IndexedDB
+- All data stored locally in your browser - nothing sent to any server except OpenRouter
 
 ## Running Locally
 

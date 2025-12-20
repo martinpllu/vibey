@@ -443,6 +443,13 @@
       border-bottom-left-radius: 4px;
     }
 
+    .message.assistant code {
+      background: var(--vibe-border);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 12px;
+    }
+
     .message.error {
       background: var(--vibe-accent-soft);
       color: var(--vibe-accent);
@@ -2824,7 +2831,10 @@ The user will describe what they want, and you'll generate the complete HTML for
           usageHtml = `<div class="message-usage">${restoreBtn}</div>`;
         }
 
-        return `<div class="message ${msg.role}">${escapeHtml(displayContent)}${usageHtml}</div>`;
+        const formattedContent = msg.role === 'assistant'
+          ? formatMarkdown(escapeHtml(displayContent))
+          : escapeHtml(displayContent);
+        return `<div class="message ${msg.role}">${formattedContent}${usageHtml}</div>`;
       }).join('');
 
       if (isLoading) {
@@ -2844,6 +2854,15 @@ The user will describe what they want, and you'll generate the complete HTML for
       const div = document.createElement('div');
       div.textContent = text;
       return div.innerHTML;
+    }
+
+    function formatMarkdown(text) {
+      // Basic markdown: bold, italic, inline code, bullets (applied after escapeHtml)
+      return text
+        .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
+        .replace(/\*(.+?)\*/g, '<em>$1</em>')
+        .replace(/`([^`]+)`/g, '<code>$1</code>')
+        .replace(/^[-*]\s+(.+)$/gm, '<br>• $1');
     }
 
     function extractHtmlCode(text) {
