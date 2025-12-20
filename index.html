@@ -1931,6 +1931,10 @@ The user will describe what they want, and you'll generate the complete HTML for
       newIframe.id = 'preview-frame';
       newIframe.sandbox = 'allow-scripts allow-forms allow-modals allow-same-origin';
       newIframe.srcdoc = srcdoc;
+      newIframe.addEventListener('load', () => {
+        // Focus the iframe so keyboard input goes to the app (e.g., for games)
+        newIframe.focus();
+      });
       previewFrame.parentNode.replaceChild(newIframe, previewFrame);
       previewFrame = newIframe;
     }

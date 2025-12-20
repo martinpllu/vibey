@@ -4,7 +4,7 @@ Vibe code in your browser.
 
 **[Try it live →](https://martinpllu.github.io/vibey)** (requires an [OpenRouter](https://openrouter.ai) account)
 
-Describe what you want, and iterate on your app in real-time. The generated code renders in an iframe while you chat.
+![Vibey screenshot](screenshot.png)
 
 **Features:**
 - Multiple AI models via OpenRouter (Gemini 3 Flash, Claude Opus 4.5, etc)
