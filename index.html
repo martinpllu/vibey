@@ -1129,7 +1129,7 @@
 </head>
 <body>
   <!-- Preview iframe - sandboxed to prevent access to parent window -->
-  <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals" srcdoc="<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui,sans-serif;background:#FAFAF8;color:#9A9A9A;'><div style='text-align:center;'><p style='font-size:18px;margin:0 0 8px 0;'>🎨</p><p style='font-size:14px;margin:0;'>Your app will appear here</p></div></body></html>"></iframe>
+  <iframe id="preview-frame" sandbox="allow-scripts allow-forms allow-modals allow-same-origin" srcdoc="<html><body style='display:flex;align-items:center;justify-content:center;height:100vh;margin:0;font-family:system-ui,sans-serif;background:#FAFAF8;color:#9A9A9A;'><div style='text-align:center;'><p style='font-size:18px;margin:0 0 8px 0;'>🎨</p><p style='font-size:14px;margin:0;'>Your app will appear here</p></div></body></html>"></iframe>
 
   <!-- Toggle button -->
   <button id="vibey-toggle" title="Toggle Vibey panel">
@@ -1595,7 +1595,7 @@ The user will describe what they want, and you'll generate the complete HTML for
     function replacePreviewFrame(srcdoc) {
       const newIframe = document.createElement('iframe');
       newIframe.id = 'preview-frame';
-      newIframe.sandbox = 'allow-scripts allow-forms allow-modals';
+      newIframe.sandbox = 'allow-scripts allow-forms allow-modals allow-same-origin';
       newIframe.srcdoc = srcdoc;
       previewFrame.parentNode.replaceChild(newIframe, previewFrame);
       previewFrame = newIframe;
