@@ -1383,19 +1383,6 @@
           </label>
         </div>
         <div class="form-group">
-          <label class="toggle-label">
-            <input type="checkbox" id="use-placeholders-toggle">
-            <span>Use placeholders for old code</span>
-            <span class="info-icon" id="placeholder-info">ⓘ</span>
-          </label>
-          <div class="info-tooltip" id="placeholder-tooltip">
-            <strong>What this does:</strong> Replaces old code versions with placeholders, sending only the latest code to the model.<br><br>
-            <strong>Trade-off:</strong> Reduces token count but breaks prompt caching. Models with caching (most providers) benefit more from sending full history.<br><br>
-            <strong>Use this for:</strong> Models without caching support, or very long conversations where token limits are a concern.<br><br>
-            <a href="https://openrouter.ai/docs/guides/best-practices/prompt-caching" target="_blank">Check caching support →</a>
-          </div>
-        </div>
-        <div class="form-group">
           <button id="clear-code-btn" style="padding: 10px 16px; background: #E8346C; color: #FFFFFF; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Space Mono', monospace; transition: all 0.15s;" onmouseover="this.style.background='#D42D5E';" onmouseout="this.style.background='#E8346C';">Clear Code & Chat</button>
         </div>
               </div>
@@ -1448,8 +1435,7 @@
       model: 'vibey_model',
       customModel: 'vibey_custom_model',
       panelCollapsed: 'vibey_panel_collapsed',
-      showCost: 'vibey_show_cost',
-      usePlaceholders: 'vibey_use_placeholders'
+      showCost: 'vibey_show_cost'
     };
 
     // IndexedDB Storage class for apps and messages
@@ -1887,9 +1873,6 @@ The user will describe what they want, and you'll generate the complete HTML for
     let previewFrame = document.getElementById('preview-frame');
     const clearCodeBtn = document.getElementById('clear-code-btn');
     const showCostToggle = document.getElementById('show-cost-toggle');
-    const usePlaceholdersToggle = document.getElementById('use-placeholders-toggle');
-    const placeholderInfo = document.getElementById('placeholder-info');
-    const placeholderTooltip = document.getElementById('placeholder-tooltip');
     const webSearchBtn = document.getElementById('web-search-btn');
     const tabBtns = document.querySelectorAll('.tab-btn');
     const tabContents = document.querySelectorAll('.tab-content');
@@ -2597,10 +2580,6 @@ The user will describe what they want, and you'll generate the complete HTML for
       const showCost = localStorage.getItem(STORAGE_KEYS.showCost);
       showCostToggle.checked = showCost === null ? true : showCost === 'true';
 
-      // Load use placeholders setting (default to false)
-      const usePlaceholders = localStorage.getItem(STORAGE_KEYS.usePlaceholders);
-      usePlaceholdersToggle.checked = usePlaceholders === 'true';
-
       // Event listeners
       toggle.addEventListener('click', togglePanel);
       sendBtn.addEventListener('click', sendMessage);
@@ -2645,14 +2624,6 @@ The user will describe what they want, and you'll generate the complete HTML for
       showCostToggle.addEventListener('change', () => {
         localStorage.setItem(STORAGE_KEYS.showCost, showCostToggle.checked);
         renderMessages();
-      });
-      usePlaceholdersToggle.addEventListener('change', () => {
-        localStorage.setItem(STORAGE_KEYS.usePlaceholders, usePlaceholdersToggle.checked);
-      });
-      placeholderInfo.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        placeholderTooltip.classList.toggle('visible');
       });
       modelSelect.addEventListener('change', handleModelChange);
       customModelInput.addEventListener('change', saveSettings);
@@ -3272,22 +3243,20 @@ The user will describe what they want, and you'll generate the complete HTML for
         const isAnthropicModel = model.startsWith('anthropic/');
         const conversationMessages = messages.filter(m => m.role !== 'system' && m.role !== 'error');
 
-        // Find the last assistant message that contains code (only needed if placeholders enabled)
-        const usePlaceholders = usePlaceholdersToggle.checked;
+        // Find the last assistant message that contains code (for placeholder logic)
         let lastCodeIndex = -1;
-        if (usePlaceholders) {
-          for (let i = conversationMessages.length - 1; i >= 0; i--) {
-            const m = conversationMessages[i];
-            // Check both new format (m.code) and legacy format (code in content)
-            if (m.role === 'assistant' && (m.code || /```html[\s\S]*?```/.test(m.content))) {
-              lastCodeIndex = i;
-              break;
-            }
+        for (let i = conversationMessages.length - 1; i >= 0; i--) {
+          const m = conversationMessages[i];
+          // Check both new format (m.code) and legacy format (code in content)
+          if (m.role === 'assistant' && (m.code || /```html[\s\S]*?```/.test(m.content))) {
+            lastCodeIndex = i;
+            break;
           }
         }
 
         // Helper to get full message content for API requests
         // Reconstructs text + code for new format, handles legacy format
+        // Old code versions are replaced with placeholders to reduce token count
         const getMessageContent = (m, idx) => {
           // For user messages with attached logs/errors, use _fullContent
           if (m.role === 'user' && m._fullContent) {
@@ -3304,8 +3273,8 @@ The user will describe what they want, and you'll generate the complete HTML for
             fullContent = m.content;
           }
 
-          // Apply placeholder logic if enabled
-          if (usePlaceholders && m.role === 'assistant' && idx < lastCodeIndex) {
+          // Replace old code versions with placeholder (only keep latest code)
+          if (m.role === 'assistant' && idx < lastCodeIndex) {
             const hasCode = m.code || /```html[\s\S]*?```/.test(fullContent);
             if (hasCode) {
               return fullContent.replace(/```html[\s\S]*?```/, '[Previous code version omitted]');
