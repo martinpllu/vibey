@@ -9,7 +9,9 @@ Describe what you want, and iterate on your app in real-time. The generated code
 - Multiple AI models via OpenRouter (Claude, GPT-4, Gemini, etc.)
 - Multiple apps with separate chat histories
 - Token usage and cost tracking
-- Everything persists in localStorage
+- Auto-attach browser errors for easy debugging
+- Attach console logs and screenshots to messages
+- Everything persists in IndexedDB
 
 ## Running Locally
 

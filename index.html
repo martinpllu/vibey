@@ -726,41 +726,98 @@
       transform: translateX(12px);
     }
 
-    #attachment-indicator {
+    /* Attachments container */
+    #attachments-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 8px;
+    }
+
+    .attachment-chip {
       display: inline-flex;
       align-items: center;
-      gap: 4px;
-      padding: 4px 8px;
-      background: var(--vibe-accent-soft);
-      border: 1px solid var(--vibe-accent);
+      gap: 5px;
+      padding: 5px 10px;
       border-radius: 6px;
       font-size: 11px;
       font-family: 'Space Mono', monospace;
-      color: var(--vibe-accent);
       cursor: pointer;
       white-space: nowrap;
+      transition: all 0.15s;
+      border: 1px solid;
     }
 
-    #attachment-indicator:hover {
-      background: #FFE0E8;
+    .attachment-chip .chip-icon {
+      font-size: 12px;
     }
 
-    #attachment-indicator .remove-btn {
+    .attachment-chip .remove-btn {
       background: none;
       border: none;
-      color: var(--vibe-accent);
       cursor: pointer;
       font-size: 14px;
       padding: 0;
       margin-left: 2px;
       line-height: 1;
+      opacity: 0.7;
+      transition: opacity 0.15s;
     }
 
-    #attachment-indicator .remove-btn:hover {
-      color: #D42D5E;
+    .attachment-chip .remove-btn:hover {
+      opacity: 1;
     }
 
-    /* Screenshot preview modal */
+    /* Error chip - warm red/coral tones */
+    .attachment-chip.error-chip {
+      background: #FEF2F2;
+      border-color: #FECACA;
+      color: #B91C1C;
+    }
+
+    .attachment-chip.error-chip:hover {
+      background: #FEE2E2;
+      border-color: #F87171;
+    }
+
+    .attachment-chip.error-chip .remove-btn {
+      color: #B91C1C;
+    }
+
+    /* Log chip - neutral warm tones */
+    .attachment-chip.log-chip {
+      background: #F5F5F4;
+      border-color: #D6D3D1;
+      color: #57534E;
+    }
+
+    .attachment-chip.log-chip:hover {
+      background: #E7E5E4;
+      border-color: #A8A29E;
+    }
+
+    .attachment-chip.log-chip .remove-btn {
+      color: #57534E;
+    }
+
+    /* Screenshot chip - existing accent color */
+    .attachment-chip.screenshot-chip {
+      background: var(--vibe-accent-soft);
+      border-color: var(--vibe-border-dark);
+      color: var(--vibe-text);
+    }
+
+    .attachment-chip.screenshot-chip:hover {
+      background: var(--vibe-surface);
+      border-color: var(--vibe-accent);
+    }
+
+    .attachment-chip.screenshot-chip .remove-btn {
+      color: var(--vibe-text-dim);
+    }
+
+    /* Preview modals */
+    .preview-modal,
     #screenshot-modal {
       position: fixed;
       inset: 0;
@@ -776,7 +833,66 @@
       max-width: 90%;
       max-height: 90%;
       border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+
+    .preview-content {
+      background: var(--vibe-panel);
+      border-radius: 12px;
+      max-width: 600px;
+      max-height: 80vh;
+      width: 90%;
+      overflow: hidden;
+      cursor: default;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    }
+
+    .preview-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 12px 16px;
+      border-bottom: 1px solid var(--vibe-border);
+    }
+
+    .preview-title {
+      font-family: 'Space Mono', monospace;
+      font-size: 13px;
+      font-weight: 600;
+    }
+
+    .error-preview .preview-title {
+      color: #B91C1C;
+    }
+
+    .log-preview .preview-title {
+      color: #57534E;
+    }
+
+    .preview-close {
+      background: none;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+      color: var(--vibe-text-dim);
+      padding: 0;
+      line-height: 1;
+    }
+
+    .preview-close:hover {
+      color: var(--vibe-text);
+    }
+
+    .preview-body {
+      padding: 16px;
+      margin: 0;
+      font-family: 'Space Mono', monospace;
+      font-size: 12px;
+      line-height: 1.6;
+      overflow-y: auto;
+      max-height: calc(80vh - 60px);
+      white-space: pre-wrap;
+      word-break: break-word;
+      color: var(--vibe-text);
     }
 
     /* Loading indicator */
@@ -2457,8 +2573,10 @@ Submitted via Vibey`);
       window.addEventListener('message', (e) => {
         if (e.source !== previewFrame?.contentWindow) return;
         if (e.data?.type === 'vibey-error') {
-          capturedErrors.push({ message: e.data.message, line: e.data.line });
-          updateErrorButton();
+          // Auto-attach errors so they're ready to send with next message
+          if (!pendingErrors) pendingErrors = [];
+          pendingErrors.push({ message: e.data.message, line: e.data.line });
+          updateAttachmentIndicator();
         } else if (e.data?.type === 'vibey-log') {
           capturedLogs.push({ level: e.data.level, message: e.data.message });
           updateLogButton();
@@ -2486,8 +2604,8 @@ Submitted via Vibey`);
       document.getElementById('disconnect-btn')?.addEventListener('click', disconnectAuth);
 
       // Toolbar buttons
-      document.getElementById('fix-errors-btn').addEventListener('click', sendErrorsToAgent);
-      document.getElementById('send-logs-btn').addEventListener('click', sendLogsToAgent);
+      document.getElementById('fix-errors-btn').addEventListener('click', attachErrors);
+      document.getElementById('send-logs-btn').addEventListener('click', attachLogs);
       document.getElementById('screenshot-btn').addEventListener('click', captureScreenshot);
       webSearchBtn.addEventListener('click', toggleWebSearch);
 
@@ -2600,6 +2718,7 @@ Submitted via Vibey`);
       if (options.webSearch) msg._webSearch = true;
       if (options.model) msg.model = options.model;
       if (options.code) msg.code = options.code;
+      if (options._fullContent) msg._fullContent = options._fullContent;
       messages.push(msg);
       // Save individual message to IndexedDB
       const app = getCurrentApp();
@@ -2783,24 +2902,18 @@ Submitted via Vibey`);
       }
     }
 
-    // Update error button badge
+    // Update error button badge (errors are now auto-attached, but keep for manual use)
     function updateErrorButton() {
       const btn = document.getElementById('fix-errors-btn');
       if (btn) {
-        btn.style.display = capturedErrors.length > 0 ? 'flex' : 'none';
-        btn.textContent = `Fix Errors (${capturedErrors.length})`;
+        // Errors are auto-attached now, so this button is hidden
+        btn.style.display = 'none';
       }
     }
 
-    // Send errors to agent
-    function sendErrorsToAgent() {
-      if (capturedErrors.length === 0) return;
-      const errorList = capturedErrors.map(e => `- ${e.message}${e.line ? ` (line ${e.line})` : ''}`).join('\n');
-      const msg = `[Browser Errors]\n${errorList}\n\nPlease fix these errors.`;
-      chatInput.value = msg;
-      capturedErrors = [];
-      updateErrorButton();
-      sendMessage();
+    // Attach errors (kept for backwards compatibility)
+    function attachErrors() {
+      // Errors are now auto-attached via message listener
     }
 
     // Update log button badge
@@ -2808,23 +2921,24 @@ Submitted via Vibey`);
       const btn = document.getElementById('send-logs-btn');
       if (btn) {
         btn.style.display = capturedLogs.length > 0 ? 'flex' : 'none';
-        btn.textContent = `Send Logs (${capturedLogs.length})`;
+        btn.textContent = `Attach Logs (${capturedLogs.length})`;
       }
     }
 
-    // Send logs to agent
-    function sendLogsToAgent() {
+    // Attach logs (instead of sending immediately)
+    function attachLogs() {
       if (capturedLogs.length === 0) return;
-      const logList = capturedLogs.map(l => `- [${l.level}] ${l.message}`).join('\n');
-      const msg = `[Console Logs]\n${logList}`;
-      chatInput.value = msg;
+      pendingLogs = [...capturedLogs];
       capturedLogs = [];
       updateLogButton();
-      sendMessage();
+      updateAttachmentIndicator();
+      chatInput.focus();
     }
 
-    // Pending screenshot attachment
+    // Pending attachments
     let pendingScreenshot = null;
+    let pendingErrors = null;  // Array of errors to attach
+    let pendingLogs = null;    // Array of logs to attach
 
     // Capture screenshot and attach it (don't send immediately)
     async function captureScreenshot() {
@@ -2868,19 +2982,50 @@ Submitted via Vibey`);
       }
     }
 
-    // Show/hide attachment indicator
+    // Show/hide attachment indicators
     function updateAttachmentIndicator() {
-      let indicator = document.getElementById('attachment-indicator');
-      if (pendingScreenshot) {
-        if (!indicator) {
-          indicator = document.createElement('div');
-          indicator.id = 'attachment-indicator';
-          indicator.innerHTML = '📷 <span>Screenshot</span><button class="remove-btn" onclick="event.stopPropagation(); clearScreenshot();">&times;</button>';
-          indicator.onclick = () => showScreenshotModal();
-          document.querySelector('.input-wrapper').insertBefore(indicator, chatInput);
+      let container = document.getElementById('attachments-container');
+      const hasAnyAttachment = pendingScreenshot || pendingErrors || pendingLogs;
+
+      if (hasAnyAttachment) {
+        if (!container) {
+          container = document.createElement('div');
+          container.id = 'attachments-container';
+          document.querySelector('.input-wrapper').insertBefore(container, chatInput);
         }
-      } else if (indicator) {
-        indicator.remove();
+
+        // Build attachment chips
+        let html = '';
+
+        if (pendingErrors) {
+          const count = pendingErrors.length;
+          html += `<div class="attachment-chip error-chip" onclick="showErrorsPreview()">
+            <span class="chip-icon">⚠</span>
+            <span>${count} Error${count > 1 ? 's' : ''}</span>
+            <button class="remove-btn" onclick="event.stopPropagation(); clearPendingErrors();">&times;</button>
+          </div>`;
+        }
+
+        if (pendingLogs) {
+          const count = pendingLogs.length;
+          html += `<div class="attachment-chip log-chip" onclick="showLogsPreview()">
+            <span class="chip-icon">◉</span>
+            <span>${count} Log${count > 1 ? 's' : ''}</span>
+            <button class="remove-btn" onclick="event.stopPropagation(); clearPendingLogs();">&times;</button>
+          </div>`;
+        }
+
+        if (pendingScreenshot) {
+          html += `<div class="attachment-chip screenshot-chip" onclick="showScreenshotModal()">
+            <span class="chip-icon">📷</span>
+            <span>Screenshot</span>
+            <button class="remove-btn" onclick="event.stopPropagation(); clearScreenshot();">&times;</button>
+          </div>`;
+        }
+
+        container.innerHTML = html;
+      } else if (container) {
+        container.remove();
       }
     }
 
@@ -2907,6 +3052,58 @@ Submitted via Vibey`);
     window.clearScreenshot = function() {
       pendingScreenshot = null;
       updateAttachmentIndicator();
+    };
+
+    // Clear pending errors (global for onclick)
+    window.clearPendingErrors = function() {
+      pendingErrors = null;
+      updateAttachmentIndicator();
+    };
+
+    // Clear pending logs (global for onclick)
+    window.clearPendingLogs = function() {
+      pendingLogs = null;
+      updateAttachmentIndicator();
+    };
+
+    // Show errors preview modal
+    window.showErrorsPreview = function() {
+      if (!pendingErrors) return;
+      const modal = document.createElement('div');
+      modal.id = 'preview-modal';
+      modal.className = 'preview-modal';
+      const errorList = pendingErrors.map(e => `• ${e.message}${e.line ? ` (line ${e.line})` : ''}`).join('\n');
+      modal.innerHTML = `
+        <div class="preview-content error-preview">
+          <div class="preview-header">
+            <span class="preview-title">⚠ Errors (${pendingErrors.length})</span>
+            <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
+          </div>
+          <pre class="preview-body">${errorList}</pre>
+        </div>
+      `;
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      document.body.appendChild(modal);
+    };
+
+    // Show logs preview modal
+    window.showLogsPreview = function() {
+      if (!pendingLogs) return;
+      const modal = document.createElement('div');
+      modal.id = 'preview-modal';
+      modal.className = 'preview-modal';
+      const logList = pendingLogs.map(l => `[${l.level}] ${l.message}`).join('\n');
+      modal.innerHTML = `
+        <div class="preview-content log-preview">
+          <div class="preview-header">
+            <span class="preview-title">◉ Console Logs (${pendingLogs.length})</span>
+            <button class="preview-close" onclick="this.closest('.preview-modal').remove()">&times;</button>
+          </div>
+          <pre class="preview-body">${logList}</pre>
+        </div>
+      `;
+      modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+      document.body.appendChild(modal);
     };
 
     async function clearCode() {
@@ -2944,24 +3141,45 @@ Submitted via Vibey`);
         return;
       }
 
-      // Capture screenshot and web search state before clearing
+      // Capture all attachment state before clearing
       const screenshot = pendingScreenshot;
+      const errors = pendingErrors;
+      const logs = pendingLogs;
       const useWebSearch = webSearchEnabled;
       pendingScreenshot = null;
+      pendingErrors = null;
+      pendingLogs = null;
       webSearchEnabled = false;
       updateAttachmentIndicator();
       webSearchBtn.classList.remove('active');
 
-      // Add user message (with attachment and web search indicator in UI)
-      let displayContent = content;
-      if (screenshot && useWebSearch) {
-        displayContent = `[Screenshot attached] [Web search]\n${content}`;
-      } else if (screenshot) {
-        displayContent = `[Screenshot attached]\n${content}`;
-      } else if (useWebSearch) {
-        displayContent = `[Web search]\n${content}`;
+      // Build full message content with attachments
+      let fullContent = content;
+
+      // Prepend errors if attached
+      if (errors && errors.length > 0) {
+        const errorList = errors.map(e => `- ${e.message}${e.line ? ` (line ${e.line})` : ''}`).join('\n');
+        fullContent = `[Browser Errors]\n${errorList}\n\n${fullContent}`;
       }
-      const userMsg = await addMessage('user', displayContent, { webSearch: useWebSearch });
+
+      // Prepend logs if attached
+      if (logs && logs.length > 0) {
+        const logList = logs.map(l => `- [${l.level}] ${l.message}`).join('\n');
+        fullContent = `[Console Logs]\n${logList}\n\n${fullContent}`;
+      }
+
+      // Build display content with indicators
+      let displayIndicators = [];
+      if (errors) displayIndicators.push(`[${errors.length} error${errors.length > 1 ? 's' : ''} attached]`);
+      if (logs) displayIndicators.push(`[${logs.length} log${logs.length > 1 ? 's' : ''} attached]`);
+      if (screenshot) displayIndicators.push('[Screenshot attached]');
+      if (useWebSearch) displayIndicators.push('[Web search]');
+
+      let displayContent = displayIndicators.length > 0
+        ? `${displayIndicators.join(' ')}\n${content}`
+        : content;
+
+      const userMsg = await addMessage('user', displayContent, { webSearch: useWebSearch, _fullContent: fullContent });
       // Store screenshot data for API (in memory and IndexedDB)
       if (screenshot && userMsg) {
         userMsg._screenshot = screenshot;
@@ -3000,6 +3218,11 @@ Submitted via Vibey`);
         // Helper to get full message content for API requests
         // Reconstructs text + code for new format, handles legacy format
         const getMessageContent = (m, idx) => {
+          // For user messages with attached logs/errors, use _fullContent
+          if (m.role === 'user' && m._fullContent) {
+            return m._fullContent;
+          }
+
           // Reconstruct full content: new format has code separate, legacy has it embedded
           let fullContent;
           if (m.role === 'assistant' && m.code !== undefined) {
