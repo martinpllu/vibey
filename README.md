@@ -27,7 +27,7 @@ Vibey is a single HTML file with no backend. Here's what's happening under the h
 - **Storage**: Apps and chat history are stored in IndexedDB. Settings use localStorage.
 - **AI integration**: Calls go directly to OpenRouter's API from the browser. Only the latest code is sent to the model – older versions are replaced with placeholders to reduce token usage (caching can mitigate this, but I also found that including old code versions confused the model and made regressions more likely)
 - **Screenshots**: For canvas-based apps (games), screenshots grab the canvas directly via `toDataURL()`. For regular HTML, it falls back to html2canvas.
-- **Auth**: Your OpenRouter API key is stored in localStorage for convenience. For security, consider setting an expiry time and budget limit on your OpenRouter key.
+- **Auth**: Your OpenRouter API key is stored in localStorage for convenience. For security, you can set an expiry time and budget limit in the OpenRouter OAuth approval screen.
 
 ## Running Locally
 
