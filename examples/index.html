@@ -4,58 +4,133 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Vibey Examples</title>
+  <link rel="icon" type="image/svg+xml" href="../logo.svg">
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
   <style>
-    body {
-      font-family: system-ui, -apple-system, sans-serif;
-      max-width: 600px;
-      margin: 40px auto;
-      padding: 20px;
-      background: #FAFAF8;
-      color: #333;
+    :root {
+      --vibe-bg: #F5F5F5;
+      --vibe-white: #FFFFFF;
+      --vibe-border: #E0E0E0;
+      --vibe-text: #000000;
+      --vibe-text-dim: #666666;
+      --vibe-text-light: #888888;
     }
-    h1 { margin-bottom: 8px; }
-    .subtitle { color: #666; margin-bottom: 32px; }
-    .app-list { list-style: none; padding: 0; }
-    .app-list li { margin-bottom: 16px; }
+
+    body {
+      font-family: 'Space Mono', 'Courier New', monospace;
+      max-width: 640px;
+      margin: 0 auto;
+      padding: 40px 20px;
+      background: var(--vibe-bg);
+      color: var(--vibe-text);
+    }
+
+    .header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin-bottom: 8px;
+    }
+
+    .logo {
+      width: 32px;
+      height: 32px;
+    }
+
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      margin: 0;
+    }
+
+    .subtitle {
+      color: var(--vibe-text-dim);
+      margin-bottom: 32px;
+      font-size: 13px;
+    }
+
+    .subtitle a {
+      color: var(--vibe-text);
+      text-decoration: none;
+      border-bottom: 1px solid var(--vibe-border);
+    }
+
+    .subtitle a:hover {
+      border-color: var(--vibe-text);
+    }
+
+    .app-list {
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+
+    .app-list li {
+      margin-bottom: 12px;
+    }
+
     .app-list a {
       display: block;
       padding: 16px;
-      background: white;
+      background: var(--vibe-white);
+      border: 1px solid var(--vibe-border);
       border-radius: 8px;
       text-decoration: none;
       color: inherit;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-      transition: box-shadow 0.2s;
+      transition: border-color 0.15s, box-shadow 0.15s;
     }
-    .app-list a:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
-    .app-name { font-weight: 600; color: #111; }
-    .app-author { font-size: 14px; color: #666; }
-    .app-desc { font-size: 14px; color: #888; margin-top: 4px; }
+
+    .app-list a:hover {
+      border-color: var(--vibe-text);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+    }
+
+    .app-name {
+      font-weight: 700;
+      font-size: 14px;
+      margin-bottom: 4px;
+    }
+
+    .app-meta {
+      font-size: 11px;
+      color: var(--vibe-text-light);
+      margin-bottom: 6px;
+    }
+
+    .app-desc {
+      font-size: 12px;
+      color: var(--vibe-text-dim);
+    }
   </style>
 </head>
 <body>
-  <h1>Vibey Examples</h1>
-  <p class="subtitle">Community apps built with <a href="../">Vibey</a></p>
+  <div class="header">
+    <svg class="logo" viewBox="0 0 32 32" fill="currentColor">
+      <polygon points="16,28 2,6 30,6"/>
+    </svg>
+    <h1>Vibey Examples</h1>
+  </div>
+  <p class="subtitle">Apps built with <a href="../">Vibey</a></p>
 
   <ul class="app-list">
     <li>
       <a href="penguin-ski.html" data-author="martinpllu" data-date="2025-12-20" data-description="Penguin skiing game">
         <div class="app-name">Penguin Ski</div>
-        <div class="app-author">by martinpllu · 2025-12-20</div>
+        <div class="app-meta">martinpllu · 2025-12-20</div>
         <div class="app-desc">Penguin skiing game</div>
       </a>
     </li>
     <li>
       <a href="block-bash.html" data-author="martinpllu" data-date="2025-12-20" data-description="2D physics sim">
         <div class="app-name">Block Bash</div>
-        <div class="app-author">by martinpllu · 2025-12-20</div>
+        <div class="app-meta">martinpllu · 2025-12-20</div>
         <div class="app-desc">2D physics sim</div>
       </a>
     </li>
     <li>
       <a href="tides.html" data-author="martinpllu" data-date="2025-12-21" data-description="Interactive tidal physics explainer">
         <div class="app-name">Tides</div>
-        <div class="app-author">by martinpllu · 2025-12-21</div>
+        <div class="app-meta">martinpllu · 2025-12-21</div>
         <div class="app-desc">Interactive tidal physics explainer</div>
       </a>
     </li>

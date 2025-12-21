@@ -4,6 +4,8 @@
 
 Try it live: [https://martinpllu.github.io/vibey](https://martinpllu.github.io/vibey)
 
+See [examples of apps built with Vibey](https://martinpllu.github.io/vibey/examples/)
+
 (Requires an [OpenRouter](https://openrouter.ai) account for model access)
 
 ![Vibey screenshot](screenshot.png)
