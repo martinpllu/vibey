@@ -2224,6 +2224,7 @@ The user will describe what they want, and you'll generate the complete HTML for
           apps.push({
             name: link.querySelector('.app-name')?.textContent || href.replace('.html', ''),
             author: link.dataset.author || 'unknown',
+            date: link.dataset.date || '',
             description: link.dataset.description || '',
             url: href
           });
@@ -2266,7 +2267,7 @@ The user will describe what they want, and you'll generate the complete HTML for
         grid.innerHTML = ctaHtml + apps.map(app => `
           <div class="community-card" data-url="${escapeHtml(app.url)}">
             <h4>${escapeHtml(app.name)}</h4>
-            <div class="author">by ${escapeHtml(app.author)}</div>
+            <div class="author">by ${escapeHtml(app.author)}${app.date ? ` · ${escapeHtml(app.date)}` : ''}</div>
             ${app.description ? `<p class="description">${escapeHtml(app.description)}</p>` : ''}
           </div>
         `).join('');
