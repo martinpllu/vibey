@@ -1825,7 +1825,6 @@
     }
 
     // Community settings
-    const REGISTRY_GIST_ID = '0da5574f9ae27f702d5bfcf1494ea465';
     const GITHUB_REPO = 'martinpllu/vibey';
 
     // App state
@@ -2213,23 +2212,23 @@ The user will describe what they want, and you'll generate the complete HTML for
 
     let communityLoaded = false;
 
-    function parseCSV(text) {
-      const lines = text.trim().split('\n');
-      if (lines.length < 2) return [];
-
-      const headers = lines[0].split(',').map(h => h.trim());
+    function parseExamplesIndex(html) {
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(html, 'text/html');
+      const links = doc.querySelectorAll('a[href$=".html"]');
       const apps = [];
 
-      for (let i = 1; i < lines.length; i++) {
-        const values = lines[i].split(',').map(v => v.trim());
-        if (values.length >= 2) {
-          const app = {};
-          headers.forEach((header, idx) => {
-            app[header] = values[idx] || '';
+      links.forEach(link => {
+        const href = link.getAttribute('href');
+        if (href && href !== 'index.html') {
+          apps.push({
+            name: link.querySelector('.app-name')?.textContent || href.replace('.html', ''),
+            author: link.dataset.author || 'unknown',
+            description: link.dataset.description || '',
+            url: href
           });
-          apps.push(app);
         }
-      }
+      });
       return apps;
     }
 
@@ -2238,29 +2237,12 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       const grid = document.getElementById('community-grid');
 
-      // Check if running from file:// (CORS won't work)
-      if (window.location.protocol === 'file:') {
-        grid.innerHTML = `
-          <div class="community-empty">
-            <p>Community requires HTTP server</p>
-            <p style="font-size: 12px; color: #999;">Run locally with:</p>
-            <code style="display: block; background: #F7F7F6; padding: 8px; border-radius: 4px; font-size: 11px; margin-top: 8px;">python3 -m http.server</code>
-            <p style="font-size: 12px; color: #999; margin-top: 8px;">Or deploy to GitHub Pages</p>
-          </div>`;
-        return;
-      }
-
       try {
-        // Use GitHub API (has CORS headers) instead of raw URL
-        const response = await fetch(`https://api.github.com/gists/${REGISTRY_GIST_ID}`);
-        if (!response.ok) throw new Error('Failed to fetch registry');
+        const response = await fetch('examples/index.html');
+        if (!response.ok) throw new Error('Failed to fetch examples');
 
-        const gist = await response.json();
-        // Get the first file's content (or look for a specific filename)
-        const files = Object.values(gist.files);
-        if (!files.length) throw new Error('No files in registry gist');
-        const csvText = files[0].content;
-        const apps = parseCSV(csvText);
+        const html = await response.text();
+        const apps = parseExamplesIndex(html);
 
         // CTA banner
         const currentApp = getCurrentApp();
@@ -2285,7 +2267,7 @@ The user will describe what they want, and you'll generate the complete HTML for
           <div class="community-card" data-url="${escapeHtml(app.url)}">
             <h4>${escapeHtml(app.name)}</h4>
             <div class="author">by ${escapeHtml(app.author)}</div>
-            ${app.description || app.decription ? `<p class="description">${escapeHtml(app.description || app.decription)}</p>` : ''}
+            ${app.description ? `<p class="description">${escapeHtml(app.description)}</p>` : ''}
           </div>
         `).join('');
 
@@ -2318,25 +2300,11 @@ The user will describe what they want, and you'll generate the complete HTML for
       try {
         let content;
 
-        // Use GitHub API for gist URLs (has CORS headers)
-        if (url.includes('gist.github.com')) {
-          const match = url.match(/gist\.github\.com\/([^\/]+)\/([a-f0-9]+)/);
-          if (match) {
-            const response = await fetch(`https://api.github.com/gists/${match[2]}`);
-            if (!response.ok) throw new Error('Failed to fetch app');
-            const gist = await response.json();
-            const files = Object.values(gist.files);
-            if (!files.length) throw new Error('No files in gist');
-            content = files[0].content;
-          } else {
-            throw new Error('Invalid gist URL');
-          }
-        } else {
-          // For non-gist URLs, try direct fetch
-          const response = await fetch(url);
-          if (!response.ok) throw new Error('Failed to fetch app');
-          content = await response.text();
-        }
+        // Fetch from examples folder (relative URL)
+        const fullUrl = url.startsWith('http') ? url : `examples/${url}`;
+        const response = await fetch(fullUrl);
+        if (!response.ok) throw new Error('Failed to fetch app');
+        content = await response.text();
 
         // Parse the content - expect HTML with optional VIBEY_DATA comment
         let code, chatMessages = [];

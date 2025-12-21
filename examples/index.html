@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Vibey Examples</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 600px;
+      margin: 40px auto;
+      padding: 20px;
+      background: #FAFAF8;
+      color: #333;
+    }
+    h1 { margin-bottom: 8px; }
+    .subtitle { color: #666; margin-bottom: 32px; }
+    .app-list { list-style: none; padding: 0; }
+    .app-list li { margin-bottom: 16px; }
+    .app-list a {
+      display: block;
+      padding: 16px;
+      background: white;
+      border-radius: 8px;
+      text-decoration: none;
+      color: inherit;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      transition: box-shadow 0.2s;
+    }
+    .app-list a:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .app-name { font-weight: 600; color: #111; }
+    .app-author { font-size: 14px; color: #666; }
+    .app-desc { font-size: 14px; color: #888; margin-top: 4px; }
+  </style>
+</head>
+<body>
+  <h1>Vibey Examples</h1>
+  <p class="subtitle">Community apps built with <a href="../">Vibey</a></p>
+
+  <ul class="app-list">
+    <li>
+      <a href="penguin-ski.html" data-author="martinpllu" data-description="Penguin skiing game">
+        <div class="app-name">Penguin Ski</div>
+        <div class="app-author">by martinpllu</div>
+        <div class="app-desc">Penguin skiing game</div>
+      </a>
+    </li>
+    <li>
+      <a href="block-bash.html" data-author="martinpllu" data-description="2D physics sim">
+        <div class="app-name">Block Bash</div>
+        <div class="app-author">by martinpllu</div>
+        <div class="app-desc">2D physics sim</div>
+      </a>
+    </li>
+  </ul>
+</body>
+</html>

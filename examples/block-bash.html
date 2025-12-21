@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Square Physics Lab</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: #080808;
+            font-family: system-ui, -apple-system, sans-serif;
+        }
+        canvas { display: block; }
+
+        #rules-header {
+            position: absolute;
+            top: 20px;
+            width: 100%;
+            text-align: center;
+            color: rgba(255, 255, 255, 0.7);
+            font-size: 14px;
+            letter-spacing: 0.5px;
+            pointer-events: none;
+            z-index: 5;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        }
+
+        #rules-header b {
+            color: #fff;
+        }
+
+        .ui-panel {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 30, 30, 0.8);
+            backdrop-filter: blur(8px);
+            padding: 16px;
+            border-radius: 12px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+            user-select: none;
+            z-index: 10;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            font-weight: 700;
+            color: #aaa;
+        }
+
+        input[type=range] {
+            cursor: pointer;
+            width: 160px;
+        }
+
+        button {
+            background: #444;
+            color: #fff;
+            border: 1px solid #666;
+            padding: 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        button:hover {
+            background: #555;
+            border-color: #888;
+        }
+
+        button:active {
+            transform: translateY(1px);
+        }
+    </style>
+</head>
+<body>
+    <div id="rules-header">
+        Same colors <b>merge</b> to grow larger. Different colors <b>split</b> the smaller block.
+    </div>
+
+    <div class="ui-panel">
+        <div class="control-group">
+            <label>Simulation Speed</label>
+            <input type="range" id="speedSlider" min="0.1" max="2.5" step="0.1" value="0.8">
+        </div>
+        <button id="resetBtn">Reset World</button>
+    </div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const speedSlider = document.getElementById('speedSlider');
+        const resetBtn = document.getElementById('resetBtn');
+
+        let width, height;
+        let squares = [];
+        let globalSpeedMult = 0.8;
+        
+        const COLORS = ['#FF3E3E', '#3EFF3E', '#3E3EFF', '#FFFF3E', '#FF3EFF', '#3EFFFF', '#FFA500', '#FFFFFF'];
+        const MIN_SIZE = 14;
+        const MAX_SIZE = 150;
+        const INITIAL_COUNT = 40;
+        const MAX_POPULATION = 120;
+
+        class Square {
+            constructor(x, y, size, color, vx, vy, angle, vr) {
+                this.x = x;
+                this.y = y;
+                this.size = size;
+                this.color = color;
+                this.vx = vx !== undefined ? vx : (Math.random() - 0.5) * 3;
+                this.vy = vy !== undefined ? vy : (Math.random() - 0.5) * 3;
+                this.angle = angle !== undefined ? angle : Math.random() * Math.PI * 2;
+                this.vr = vr !== undefined ? vr : (Math.random() - 0.5) * 0.05;
+                this.mass = size * size;
+                this.toDelete = false;
+                this.collisionTimer = 10;
+            }
+
+            update() {
+                this.x += this.vx * globalSpeedMult;
+                this.y += this.vy * globalSpeedMult;
+                this.angle += this.vr * globalSpeedMult;
+                if (this.collisionTimer > 0) this.collisionTimer--;
+
+                const r = this.size / 2;
+                if (this.x - r < 0) { this.vx = Math.abs(this.vx); this.x = r; }
+                if (this.x + r > width) { this.vx = -Math.abs(this.vx); this.x = width - r; }
+                if (this.y - r < 0) { this.vy = Math.abs(this.vy); this.y = r; }
+                if (this.y + r > height) { this.vy = -Math.abs(this.vy); this.y = height - r; }
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.angle);
+                ctx.fillStyle = this.color;
+                ctx.fillRect(-this.size/2, -this.size/2, this.size, this.size);
+                ctx.restore();
+            }
+        }
+
+        function resolveInteractions() {
+            const newSquares = [];
+            for (let i = 0; i < squares.length; i++) {
+                const s1 = squares[i];
+                if (s1.toDelete) continue;
+                for (let j = i + 1; j < squares.length; j++) {
+                    const s2 = squares[j];
+                    if (s2.toDelete) continue;
+
+                    const dx = s2.x - s1.x;
+                    const dy = s2.y - s1.y;
+                    const dist = Math.sqrt(dx * dx + dy * dy);
+                    const minDist = (s1.size + s2.size) * 0.52;
+
+                    if (dist < minDist) {
+                        const nx = dx / dist;
+                        const ny = dy / dist;
+                        const totalMass = s1.mass + s2.mass;
+
+                        if (s1.collisionTimer === 0 && s2.collisionTimer === 0) {
+                            if (s1.color === s2.color) {
+                                if (s1.size < MAX_SIZE && s2.size < MAX_SIZE) {
+                                    const newSize = Math.min(MAX_SIZE, Math.sqrt(s1.mass + s2.mass));
+                                    const merged = new Square(
+                                        s1.x + dx * (s2.mass/totalMass), 
+                                        s1.y + dy * (s2.mass/totalMass),
+                                        newSize, s1.color,
+                                        (s1.vx * s1.mass + s2.vx * s2.mass) / totalMass,
+                                        (s1.vy * s1.mass + s2.vy * s2.mass) / totalMass,
+                                        s1.angle, (s1.vr + s2.vr) / 2
+                                    );
+                                    s1.toDelete = true; s2.toDelete = true;
+                                    newSquares.push(merged);
+                                    break;
+                                }
+                            } else if (squares.length < MAX_POPULATION) {
+                                let victim = s1.size < s2.size ? s1 : s2;
+                                let survivor = (victim === s1) ? s2 : s1;
+                                if (victim.size > MIN_SIZE) {
+                                    const splitSize = victim.size * 0.707;
+                                    const px = -ny * (victim.size * 0.6);
+                                    const py = nx * (victim.size * 0.6);
+                                    newSquares.push(new Square(victim.x + px, victim.y + py, splitSize, victim.color, victim.vx - ny, victim.vy + nx, victim.angle, victim.vr));
+                                    newSquares.push(new Square(victim.x - px, victim.y - py, splitSize, victim.color, victim.vx + ny, victim.vy - nx, victim.angle, victim.vr));
+                                    victim.toDelete = true;
+                                    survivor.vx -= nx * 0.6; survivor.vy -= ny * 0.6;
+                                    break;
+                                }
+                            }
+                        }
+
+                        if (!s1.toDelete && !s2.toDelete) {
+                            const overlap = minDist - dist;
+                            s1.x -= nx * overlap * (s2.mass / totalMass);
+                            s1.y -= ny * overlap * (s2.mass / totalMass);
+                            s2.x += nx * overlap * (s1.mass / totalMass);
+                            s2.y += ny * overlap * (s1.mass / totalMass);
+                            const relVelNormal = (s1.vx - s2.vx) * nx + (s1.vy - s2.vy) * ny;
+                            if (relVelNormal > 0) {
+                                const impulse = (2 * relVelNormal) / totalMass;
+                                s1.vx -= impulse * s2.mass * nx; s1.vy -= impulse * s2.mass * ny;
+                                s2.vx += impulse * s1.mass * nx; s2.vy += impulse * s1.mass * ny;
+                            }
+                        }
+                    }
+                }
+            }
+            if(newSquares.length > 0 || squares.some(s => s.toDelete)) {
+                squares = squares.filter(s => !s.toDelete).concat(newSquares);
+            }
+        }
+
+        function init() {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+            squares = [];
+            for (let i = 0; i < INITIAL_COUNT; i++) {
+                squares.push(new Square(
+                    Math.random() * width, Math.random() * height,
+                    20 + Math.random() * 20,
+                    COLORS[Math.floor(Math.random() * COLORS.length)]
+                ));
+            }
+        }
+
+        function render() {
+            ctx.fillStyle = '#080808';
+            ctx.fillRect(0, 0, width, height);
+            resolveInteractions();
+            for (let s of squares) { s.update(); s.draw(); }
+            requestAnimationFrame(render);
+        }
+
+        speedSlider.addEventListener('input', (e) => globalSpeedMult = parseFloat(e.target.value));
+        resetBtn.addEventListener('click', init);
+        window.addEventListener('resize', () => {
+            width = canvas.width = window.innerWidth;
+            height = canvas.height = window.innerHeight;
+        });
+        
+        init();
+        render();
+    </script>
+</body>
+</html>
+<!--VIBEY_DATA
+{
+  "name": "Block Bash",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Draw a rotating square. Make it move around the page and bounce off the edges with realistic physics. No friction.",
+      "_fullContent": "Draw a rotating square. Make it move around the page and bounce off the edges with realistic physics. No friction.",
+      "_id": 69
+    },
+    {
+      "role": "assistant",
+      "content": "Updated",
+      "usage": {
+        "prompt_tokens": 336,
+        "completion_tokens": 1289,
+        "total_cost": 0.004035,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "7.1"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 70
+    },
+    {
+      "role": "user",
+      "content": "Remove the text and make it a solid colour, and just have a plain background. Collisions should affect the rotation realistically.",
+      "_fullContent": "Remove the text and make it a solid colour, and just have a plain background. Collisions should affect the rotation realistically.",
+      "_id": 71
+    },
+    {
+      "role": "assistant",
+      "content": "To simulate realistic physics where collisions affect rotation, we treat the square as a rigid body. When a corner hits a wall, the linear momentum is partially converted into angular momentum (rotational speed) based on the offset of the impact point from the center of mass.",
+      "usage": {
+        "prompt_tokens": 1654,
+        "completion_tokens": 1417,
+        "total_cost": 0.005078,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "8.2"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 72
+    },
+    {
+      "role": "user",
+      "content": "Create 100 squares with 8 different colours. \n\nWhen squares of the same colour collide, they should form a square with the combined size.\n\nWhen squares of the different colours collide, the smaller square (or random if the same size) should split into two squares with half the size.",
+      "_fullContent": "Create 100 squares with 8 different colours. \n\nWhen squares of the same colour collide, they should form a square with the combined size.\n\nWhen squares of the different colours collide, the smaller square (or random if the same size) should split into two squares with half the size.",
+      "_id": 73
+    },
+    {
+      "role": "assistant",
+      "content": "This simulation implements rigid body physics for 100 squares. It uses impulse-based resolution to handle collisions and rotation. \n\n**Physics Logic:**\n1.  **Same Color Collision:** When two squares of the same color touch, they merge. The new square's mass and area are the sum of the parents (the side length is calculated as $\\sqrt{s_1^2 + s_2^2}$). Conservation of momentum determines the new velocity.\n2.  **Different Color Collision:** The smaller square splits into two squares. Each child has half the area of the parent (side length divided by $\\sqrt{2}$). To prevent infinite loops, squares smaller than 10px are destroyed instead of split.",
+      "usage": {
+        "prompt_tokens": 3129,
+        "completion_tokens": 2380,
+        "total_cost": 0.0087045,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "13.2"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 74
+    },
+    {
+      "role": "user",
+      "content": "I see some overlapping/absorbing going on.",
+      "_fullContent": "I see some overlapping/absorbing going on.",
+      "_id": 75
+    },
+    {
+      "role": "assistant",
+      "content": "The \"absorbing\" effect occurred because the previous logic prioritized the merge/split rules without resolving the physical penetration first. Overlapping squares would get stuck inside each other's collision radiuses, triggering the logic repeatedly.\n\nThis updated version adds a **Separating Axis Theorem (SAT)** check for precise collision detection and an **Overlap Correction** step. It ensures that when squares collide, they are immediately pushed apart so they don't \"sink\" into one another before the merge/split logic triggers.",
+      "usage": {
+        "prompt_tokens": 5526,
+        "completion_tokens": 2525,
+        "total_cost": 0.010338,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "12.6"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 76
+    },
+    {
+      "role": "user",
+      "content": "Blocks aren't splitting when they collide",
+      "_fullContent": "Blocks aren't splitting when they collide",
+      "_id": 77
+    },
+    {
+      "role": "assistant",
+      "content": "The issue was that in the previous logic, the collision loop would break immediately after identifying a pair to merge or split, but it wasn't handling the \"impulse\" of the non-deleted square effectively, sometimes causing them to stay overlapped and glitch out.\n\nI have updated the logic to:\n1.  **Guarantee Splitting:** When different colors touch, the smaller one is instantly replaced by two smaller versions positioned slightly apart to prevent immediate re-collision.\n2.  **Explicit Separation:** Added a \"separation\" force so that squares don't sink into each other before the logic can trigger.\n3.  **Velocity Boost:** Added a small velocity outward during a split to ensure the new blocks move away from the impact site.",
+      "usage": {
+        "prompt_tokens": 8051,
+        "completion_tokens": 1889,
+        "total_cost": 0.0096925,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "11.2"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 78
+    },
+    {
+      "role": "user",
+      "content": "oh my goodness, the blocks all quickly got huge and then disappeared",
+      "_fullContent": "oh my goodness, the blocks all quickly got huge and then disappeared",
+      "_id": 79
+    },
+    {
+      "role": "assistant",
+      "content": "The issue was an exponential feedback loop: when blocks merge, they get bigger, causing more collisions, which causes more merges until they cover the screen. Meanwhile, the split logic was creating new squares that immediately collided with their siblings.\n\nThis version introduces:\n1.  **Size Caps:** Blocks cannot grow larger than 150px.\n2.  **Cooldowns:** Newly merged or split blocks are \"invincible\" for a few frames so they can move apart before interacting again.\n3.  **Spawn Separation:** Split children are launched in opposite directions to prevent instant re-merging.\n4.  **Population Control:** If there are more than 150 squares, the splitting logic stops to prevent crashing.",
+      "usage": {
+        "prompt_tokens": 9953,
+        "completion_tokens": 1982,
+        "total_cost": 0.0090955,
+        "cache_read_tokens": 4060,
+        "cache_write_tokens": 0,
+        "time": "12.4"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 80
+    },
+    {
+      "role": "user",
+      "content": "Make it half the speed",
+      "_fullContent": "Make it half the speed",
+      "_id": 81
+    },
+    {
+      "role": "assistant",
+      "content": "To slow the simulation down, I have halved the initial velocity ranges, reduced the rotation speed, and tuned the physics impulses. I also slightly increased the cooldown period to ensure the slower-moving squares have enough time to separate after a split or merge event.",
+      "usage": {
+        "prompt_tokens": 11940,
+        "completion_tokens": 2033,
+        "total_cost": 0.0084123,
+        "cache_read_tokens": 8126,
+        "cache_write_tokens": 0,
+        "time": "11.8"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 82
+    },
+    {
+      "role": "user",
+      "content": "I still see overlapping, which spoils the 'rigid body' illusion",
+      "_fullContent": "I still see overlapping, which spoils the 'rigid body' illusion",
+      "_id": 83
+    },
+    {
+      "role": "assistant",
+      "content": "To fix the \"rigid body\" illusion, we need to address **Penetration Depth**. In a computer simulation, objects move in discrete steps, so they often end up inside each other before a collision is detected. If we only change velocities, they stay stuck together.\n\nThis update introduces **Static Resolution**: when two squares overlap, the math immediately pushes them apart along the collision vector so they are perfectly touching before the next frame is drawn. I've also implemented a simplified version of **Separating Axis Theorem** for the bounce check to prevent \"ghost\" collisions.",
+      "usage": {
+        "prompt_tokens": 13986,
+        "completion_tokens": 2420,
+        "total_cost": 0.0105945,
+        "cache_read_tokens": 8130,
+        "cache_write_tokens": 0,
+        "time": "14.6"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 84
+    },
+    {
+      "role": "user",
+      "content": "Add a speed control and a reset button",
+      "_fullContent": "Add a speed control and a reset button",
+      "_id": 85
+    },
+    {
+      "role": "assistant",
+      "content": "I've added a clean UI overlay in the top-left corner. The **Speed Slider** dynamically adjusts the current velocity of every square on the fly, and the **Reset** button re-shuffles the simulation. I have also refined the repulsion physics to ensure the \"rigid body\" feel remains consistent regardless of the simulation speed.",
+      "usage": {
+        "prompt_tokens": 16414,
+        "completion_tokens": 2810,
+        "total_cost": 0.016637,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "15.3"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 86
+    },
+    {
+      "role": "user",
+      "content": "I sometimes see the colour of the blocks flicker - the colour should never change",
+      "_fullContent": "I sometimes see the colour of the blocks flicker - the colour should never change",
+      "_id": 87
+    },
+    {
+      "role": "assistant",
+      "content": "The flickering you noticed likely occurred because when a square was replaced (split or merged), the new square was being initialized with a random rotation and a short cooldown period (opacity change), which can look like a \"flicker\" of identity. \n\nIn this version, I have:\n1. **Removed the cooldown opacity**, so squares are always 100% solid.\n2. **Synchronized Properties**: When a square splits, the children inherit the *exact* color and velocity of the parent to ensure visual continuity.\n3. **Refined Physics**: I've ensured the spawn logic places children exactly along the collision tangent to prevent them from overlapping their \"survivor\" sibling immediately.",
+      "usage": {
+        "prompt_tokens": 19239,
+        "completion_tokens": 3022,
+        "total_cost": 0.0186855,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "16.0"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 88
+    },
+    {
+      "role": "user",
+      "content": "Add a sentence at the top of the screen explaining the rules of block collision",
+      "_fullContent": "Add a sentence at the top of the screen explaining the rules of block collision",
+      "_id": 89
+    },
+    {
+      "role": "assistant",
+      "content": "I've added a clean, centered instruction at the top of the screen that explains the logic of the simulation. I've also adjusted its styling to be non-intrusive while remaining legible against the moving blocks.",
+      "usage": {
+        "prompt_tokens": 22298,
+        "completion_tokens": 2955,
+        "total_cost": 0.020014,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "15.7"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "_id": 90
+    }
+  ]
+}
+VIBEY_DATA-->
