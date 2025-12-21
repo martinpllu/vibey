@@ -19,6 +19,16 @@ Try it live: [https://martinpllu.github.io/vibey](https://martinpllu.github.io/v
 
 Try it at [https://martinpllu.github.io/vibey](https://martinpllu.github.io/vibey)
 
+## How it works
+
+Vibey is a single HTML file with no backend. Here's what's happening under the hood:
+
+- **Code execution**: Generated HTML/JS runs in a sandboxed iframe using `srcdoc`. A bridge script injected into the iframe captures errors and console logs via `postMessage`.
+- **Storage**: Apps and chat history are stored in IndexedDB. Settings use localStorage.
+- **AI integration**: Calls go directly to OpenRouter's API from the browser. Only the latest code is sent to the model – older versions are replaced with placeholders to reduce token usage.
+- **Screenshots**: For canvas-based apps (games), screenshots grab the canvas directly via `toDataURL()`. For regular HTML, it falls back to html2canvas.
+- **Auth security**: As a security measure, your OpenRouter API key is stored in memory only (not localStorage) so that the code running in the iframe can't access it. You'll re-authenticate each session – it's a one-click OAuth flow.
+
 ## Running Locally
 
 ```bash
@@ -26,9 +36,3 @@ python3 -m http.server 8000
 ```
 
 Then open http://localhost:8000 in your browser.
-
-## Usage
-
-1. Click "Sign in with OpenRouter"
-2. Describe what you want to build
-3. Press `Escape` to toggle the panel

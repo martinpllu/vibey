@@ -1379,6 +1379,7 @@
           <textarea id="chat-input" placeholder="What do you want to build?" rows="1"></textarea>
         </div>
         <button class="send-btn" id="send-btn">Send</button>
+        <button class="send-btn" id="chat-login-btn" style="display: none;">Sign in</button>
       </div>
     </div>
 
@@ -1457,8 +1458,6 @@
     // Storage keys
     const STORAGE_KEYS = {
       currentAppId: 'vibey_current_app_id',
-      apiKey: 'vibey_openrouter_api_key',
-      authType: 'vibey_auth_type', // 'oauth' or 'manual'
       model: 'vibey_model',
       customModel: 'vibey_custom_model',
       panelCollapsed: 'vibey_panel_collapsed'
@@ -1689,6 +1688,12 @@
       if (oauthBtn) oauthBtn.disabled = true;
 
       try {
+        // Save any pending prompt so we can restore it after auth
+        const chatInput = document.getElementById('chat-input');
+        if (chatInput && chatInput.value.trim()) {
+          sessionStorage.setItem('vibey_pending_prompt', chatInput.value);
+        }
+
         // Generate and store code verifier
         const codeVerifier = generateCodeVerifier();
         sessionStorage.setItem(OAUTH_CONFIG.codeVerifierKey, codeVerifier);
@@ -1753,9 +1758,8 @@
           throw new Error('No API key in response');
         }
 
-        // Store the API key and auth type
-        localStorage.setItem(STORAGE_KEYS.apiKey, apiKey);
-        localStorage.setItem(STORAGE_KEYS.authType, 'oauth');
+        // Store the API key in memory only (not localStorage - for security)
+        inMemoryApiKey = apiKey;
 
         // Clean up
         sessionStorage.removeItem(OAUTH_CONFIG.codeVerifierKey);
@@ -1771,30 +1775,43 @@
       }
     }
 
-    // Disconnect (clear API key and auth type)
+    // Disconnect (clear API key)
     function disconnectAuth() {
-      if (!confirm('Disconnect from OpenRouter? You will need to sign in again to use Vibey.')) return;
-      localStorage.removeItem(STORAGE_KEYS.apiKey);
-      localStorage.removeItem(STORAGE_KEYS.authType);
+      if (!confirm('Disconnect from OpenRouter? You will need to sign in again.')) return;
+      inMemoryApiKey = null;
       updateAuthUI();
     }
 
     // Update auth UI based on current state
     function updateAuthUI() {
-      const apiKey = localStorage.getItem(STORAGE_KEYS.apiKey);
-      const hasApiKey = !!apiKey;
+      const hasApiKey = !!inMemoryApiKey;
 
       const authStatus = document.getElementById('auth-status');
       const apiKeySetup = document.getElementById('api-key-setup');
+      const sendBtn = document.getElementById('send-btn');
+      const chatLoginBtn = document.getElementById('chat-login-btn');
+      const chatInput = document.getElementById('chat-input');
 
       if (hasApiKey) {
         // Show connected status
         authStatus.style.display = 'flex';
         apiKeySetup.style.display = 'none';
+        // Show Send button, hide login button
+        sendBtn.style.display = '';
+        chatLoginBtn.style.display = 'none';
+        // Enable input
+        chatInput.disabled = false;
+        chatInput.placeholder = 'What do you want to build?';
       } else {
         // Show setup UI
         authStatus.style.display = 'none';
         apiKeySetup.style.display = 'block';
+        // Hide Send button, show login button
+        sendBtn.style.display = 'none';
+        chatLoginBtn.style.display = '';
+        // Disable input with sign-in prompt
+        chatInput.disabled = true;
+        chatInput.placeholder = 'Sign in to get started';
       }
 
       return hasApiKey;
@@ -1802,11 +1819,8 @@
 
     // Handle authentication errors (expired/revoked tokens)
     function handleAuthError() {
-      localStorage.removeItem(STORAGE_KEYS.apiKey);
-      localStorage.removeItem(STORAGE_KEYS.authType);
+      inMemoryApiKey = null;
       updateAuthUI();
-      switchTab('settings');
-      panel.classList.remove('collapsed');
     }
 
     // Community settings
@@ -1816,6 +1830,7 @@
     // App state
     let apps = [];
     let currentAppId = null;
+    let inMemoryApiKey = null; // Stored in memory only for security - not accessible to iframe
 
     // Available models
     const MODELS = [
@@ -2556,8 +2571,12 @@ The user will describe what they want, and you'll generate the complete HTML for
         // This looks like an OAuth callback, not a shared app
         const oauthSuccess = await handleOAuthCallback();
         if (oauthSuccess) {
-          // Successfully authenticated, continue with normal init
-          console.log('[Vibey] OAuth authentication successful');
+          // Successfully authenticated, restore any pending prompt
+          const pendingPrompt = sessionStorage.getItem('vibey_pending_prompt');
+          if (pendingPrompt) {
+            chatInput.value = pendingPrompt;
+            sessionStorage.removeItem('vibey_pending_prompt');
+          }
         }
       }
 
@@ -2656,6 +2675,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       // OAuth and auth buttons
       document.getElementById('oauth-btn')?.addEventListener('click', startOAuthFlow);
       document.getElementById('disconnect-btn')?.addEventListener('click', disconnectAuth);
+      document.getElementById('chat-login-btn')?.addEventListener('click', startOAuthFlow);
 
       // Toolbar buttons
       document.getElementById('fix-errors-btn').addEventListener('click', attachErrors);
@@ -3234,10 +3254,8 @@ The user will describe what they want, and you'll generate the complete HTML for
       const content = chatInput.value.trim();
       if (!content || isLoading) return;
 
-      const apiKey = localStorage.getItem(STORAGE_KEYS.apiKey);
-      if (!apiKey) {
-        switchTab('settings');
-        panel.classList.remove('collapsed');
+      if (!inMemoryApiKey) {
+        // Not authenticated - UI should show login button
         return;
       }
 
@@ -3408,7 +3426,7 @@ The user will describe what they want, and you'll generate the complete HTML for
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${apiKey}`,
+            'Authorization': `Bearer ${inMemoryApiKey}`,
             'HTTP-Referer': window.location.href,
             'X-Title': 'Vibey'
           },

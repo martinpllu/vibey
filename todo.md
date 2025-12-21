@@ -1,3 +1,0 @@
-- Highlight privacy
-- View source
-- security review
