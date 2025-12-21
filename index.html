@@ -2154,7 +2154,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       return decodeURIComponent(escape(atob(base64)));
     }
 
-    function generateVibeyBadge(position, appUrl) {
+    function generateVibeyBadge(position) {
       if (!position) return '';
 
       const positionStyles = {
@@ -2164,13 +2164,9 @@ The user will describe what they want, and you'll generate the complete HTML for
         'bottom-right': 'bottom: 12px; right: 12px;'
       };
 
-      const vibeyUrl = appUrl
-        ? `https://martinpllu.github.io/vibey?import=${encodeURIComponent(appUrl)}`
-        : 'https://martinpllu.github.io/vibey';
-
       return `
 <!-- Vibey Badge -->
-<a href="${vibeyUrl}" target="_blank" style="
+<a href="#" onclick="window.open('https://martinpllu.github.io/vibey?import=' + encodeURIComponent(window.location.href), '_blank'); return false;" style="
   position: fixed;
   ${positionStyles[position] || positionStyles['bottom-right']}
   z-index: 9999;
@@ -2187,6 +2183,7 @@ The user will describe what they want, and you'll generate the complete HTML for
   border-radius: 20px;
   box-shadow: 0 2px 8px rgba(0,0,0,0.25);
   transition: transform 0.15s, box-shadow 0.15s;
+  cursor: pointer;
 " onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.35)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.25)';">
   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
   Edit in Vibey
@@ -2194,7 +2191,7 @@ The user will describe what they want, and you'll generate the complete HTML for
 `;
     }
 
-    function exportAppHtml(includeChat = false, appUrl = null) {
+    function exportAppHtml(includeChat = false) {
       const app = getCurrentApp();
       if (!app || !app.code) return null;
 
@@ -2203,7 +2200,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       // Inject badge if position is set
       const badgePosition = localStorage.getItem(STORAGE_KEYS.badgePosition);
       if (badgePosition) {
-        const badge = generateVibeyBadge(badgePosition, appUrl);
+        const badge = generateVibeyBadge(badgePosition);
         // Insert badge before closing </body> tag, or append if no body tag
         if (html.includes('</body>')) {
           html = html.replace('</body>', badge + '</body>');
