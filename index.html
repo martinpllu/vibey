@@ -1460,7 +1460,8 @@
       currentAppId: 'vibey_current_app_id',
       model: 'vibey_model',
       customModel: 'vibey_custom_model',
-      panelCollapsed: 'vibey_panel_collapsed'
+      panelCollapsed: 'vibey_panel_collapsed',
+      apiKey: 'vibey_api_key'
     };
 
     // IndexedDB Storage class for apps and messages
@@ -1758,8 +1759,8 @@
           throw new Error('No API key in response');
         }
 
-        // Store the API key in memory only (not localStorage - for security)
-        inMemoryApiKey = apiKey;
+        // Store the API key in localStorage for persistence across sessions
+        localStorage.setItem(STORAGE_KEYS.apiKey, apiKey);
 
         // Clean up
         sessionStorage.removeItem(OAUTH_CONFIG.codeVerifierKey);
@@ -1778,13 +1779,13 @@
     // Disconnect (clear API key)
     function disconnectAuth() {
       if (!confirm('Disconnect from OpenRouter? You will need to sign in again.')) return;
-      inMemoryApiKey = null;
+      localStorage.removeItem(STORAGE_KEYS.apiKey);
       updateAuthUI();
     }
 
     // Update auth UI based on current state
     function updateAuthUI() {
-      const hasApiKey = !!inMemoryApiKey;
+      const hasApiKey = !!localStorage.getItem(STORAGE_KEYS.apiKey);
 
       const authStatus = document.getElementById('auth-status');
       const apiKeySetup = document.getElementById('api-key-setup');
@@ -1819,7 +1820,7 @@
 
     // Handle authentication errors (expired/revoked tokens)
     function handleAuthError() {
-      inMemoryApiKey = null;
+      localStorage.removeItem(STORAGE_KEYS.apiKey);
       updateAuthUI();
     }
 
@@ -1830,7 +1831,7 @@
     // App state
     let apps = [];
     let currentAppId = null;
-    let inMemoryApiKey = null; // Stored in memory only for security - not accessible to iframe
+    // API key is stored in localStorage for persistence
 
     // Available models
     const MODELS = [
@@ -3254,7 +3255,8 @@ The user will describe what they want, and you'll generate the complete HTML for
       const content = chatInput.value.trim();
       if (!content || isLoading) return;
 
-      if (!inMemoryApiKey) {
+      const apiKey = localStorage.getItem(STORAGE_KEYS.apiKey);
+      if (!apiKey) {
         // Not authenticated - UI should show login button
         return;
       }
@@ -3426,7 +3428,7 @@ The user will describe what they want, and you'll generate the complete HTML for
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'Authorization': `Bearer ${inMemoryApiKey}`,
+            'Authorization': `Bearer ${apiKey}`,
             'HTTP-Referer': window.location.href,
             'X-Title': 'Vibey'
           },
