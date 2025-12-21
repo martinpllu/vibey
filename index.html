@@ -1413,6 +1413,22 @@
         <div class="form-group">
           <button id="clear-code-btn" style="padding: 10px 16px; background: #E8346C; color: #FFFFFF; border: none; border-radius: 8px; cursor: pointer; font-size: 13px; font-weight: 500; font-family: 'Space Mono', monospace; transition: all 0.15s;" onmouseover="this.style.background='#D42D5E';" onmouseout="this.style.background='#E8346C';">Clear Code & Chat</button>
         </div>
+
+        <div style="margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--vibe-border);">
+          <div class="form-group">
+            <label>"Edit in Vibey" Badge</label>
+            <p class="form-hint" style="margin-bottom: 10px;">Add a badge to exported apps that links back to Vibey for editing</p>
+            <div style="display: flex; gap: 8px; align-items: center;">
+              <select id="badge-position" style="flex: 1;">
+                <option value="">No badge</option>
+                <option value="top-left">Top left</option>
+                <option value="top-right">Top right</option>
+                <option value="bottom-left">Bottom left</option>
+                <option value="bottom-right">Bottom right</option>
+              </select>
+            </div>
+          </div>
+        </div>
               </div>
     </div>
 
@@ -1461,7 +1477,8 @@
       model: 'vibey_model',
       customModel: 'vibey_custom_model',
       panelCollapsed: 'vibey_panel_collapsed',
-      apiKey: 'vibey_api_key'
+      apiKey: 'vibey_api_key',
+      badgePosition: 'vibey_badge_position'
     };
 
     // IndexedDB Storage class for apps and messages
@@ -1944,6 +1961,13 @@ The user will describe what they want, and you'll generate the complete HTML for
       } else {
         modelSelect.value = MODELS[0].id; // Default to first model (Gemini 3 Flash)
       }
+
+      // Load badge position setting
+      const badgePosition = document.getElementById('badge-position');
+      const savedBadgePosition = localStorage.getItem(STORAGE_KEYS.badgePosition);
+      if (badgePosition && savedBadgePosition) {
+        badgePosition.value = savedBadgePosition;
+      }
     }
 
     // Get the effective model ID (handles "other" selection)
@@ -2130,11 +2154,63 @@ The user will describe what they want, and you'll generate the complete HTML for
       return decodeURIComponent(escape(atob(base64)));
     }
 
-    function exportAppHtml(includeChat = false) {
+    function generateVibeyBadge(position, appUrl) {
+      if (!position) return '';
+
+      const positionStyles = {
+        'top-left': 'top: 12px; left: 12px;',
+        'top-right': 'top: 12px; right: 12px;',
+        'bottom-left': 'bottom: 12px; left: 12px;',
+        'bottom-right': 'bottom: 12px; right: 12px;'
+      };
+
+      const vibeyUrl = appUrl
+        ? `https://martinpllu.github.io/vibey?import=${encodeURIComponent(appUrl)}`
+        : 'https://martinpllu.github.io/vibey';
+
+      return `
+<!-- Vibey Badge -->
+<a href="${vibeyUrl}" target="_blank" style="
+  position: fixed;
+  ${positionStyles[position] || positionStyles['bottom-right']}
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
+  color: #fff;
+  font-family: system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none;
+  border-radius: 20px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25);
+  transition: transform 0.15s, box-shadow 0.15s;
+" onmouseover="this.style.transform='scale(1.05)'; this.style.boxShadow='0 4px 12px rgba(0,0,0,0.35)';" onmouseout="this.style.transform='scale(1)'; this.style.boxShadow='0 2px 8px rgba(0,0,0,0.25)';">
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"/></svg>
+  Edit in Vibey
+</a>
+`;
+    }
+
+    function exportAppHtml(includeChat = false, appUrl = null) {
       const app = getCurrentApp();
       if (!app || !app.code) return null;
 
       let html = app.code;
+
+      // Inject badge if position is set
+      const badgePosition = localStorage.getItem(STORAGE_KEYS.badgePosition);
+      if (badgePosition) {
+        const badge = generateVibeyBadge(badgePosition, appUrl);
+        // Insert badge before closing </body> tag, or append if no body tag
+        if (html.includes('</body>')) {
+          html = html.replace('</body>', badge + '</body>');
+        } else {
+          html += badge;
+        }
+      }
 
       // Embed chat and metadata as a comment at the end
       if (includeChat && app.messages && app.messages.length > 0) {
@@ -2375,6 +2451,66 @@ The user will describe what they want, and you'll generate the complete HTML for
 
     async function loadFromUrl() {
       const params = new URLSearchParams(window.location.search);
+
+      // Handle import from URL (e.g., ?import=https://example.com/app.html)
+      const importUrl = params.get('import');
+      if (importUrl) {
+        try {
+          const response = await fetch(importUrl);
+          if (!response.ok) throw new Error('Failed to fetch app');
+          const content = await response.text();
+
+          // Parse the content - expect HTML with optional VIBEY_DATA comment
+          let code, chatMessages = [];
+          let appName = 'Imported App';
+
+          if (content.includes('<!DOCTYPE') || content.includes('<html') || content.includes('<head') || content.includes('<body')) {
+            // Extract VIBEY_DATA comment if present
+            const vibeyMatch = content.match(/<!--VIBEY_DATA\n([\s\S]*?)\nVIBEY_DATA-->/);
+            if (vibeyMatch) {
+              try {
+                const vibeyData = JSON.parse(vibeyMatch[1]);
+                if (vibeyData.messages) chatMessages = vibeyData.messages;
+                if (vibeyData.name) appName = vibeyData.name;
+              } catch (e) {
+                console.error('Failed to parse VIBEY_DATA:', e);
+              }
+              // Remove the VIBEY_DATA comment from the code
+              code = content.replace(/\n<!--VIBEY_DATA\n[\s\S]*?\nVIBEY_DATA-->/, '');
+            } else {
+              code = content;
+            }
+
+            // Also strip any existing Vibey badge from imported code
+            code = code.replace(/\n?<!-- Vibey Badge -->[\s\S]*?<\/a>\n?/g, '');
+          } else {
+            throw new Error('Content is not valid HTML');
+          }
+
+          // Create new app from imported content
+          const newApp = {
+            id: generateId(),
+            name: getUniqueName(appName),
+            code: code,
+            messages: chatMessages
+          };
+
+          apps.push(newApp);
+          currentAppId = newApp.id;
+          await storage.saveApp(newApp);
+          for (const msg of chatMessages) {
+            const { _id, ...msgWithoutId } = msg;
+            await storage.saveMessage(newApp.id, msgWithoutId);
+          }
+          saveCurrentAppId();
+          window.history.replaceState({}, '', window.location.pathname);
+          return true;
+        } catch (e) {
+          console.error('Failed to import app from URL:', e);
+          alert('Failed to import app: ' + e.message);
+        }
+      }
+
       const encoded = params.get('code');
       if (encoded) {
         try {
@@ -2640,6 +2776,7 @@ The user will describe what they want, and you'll generate the complete HTML for
 
       modelSelect.addEventListener('change', handleModelChange);
       customModelInput.addEventListener('change', saveSettings);
+      document.getElementById('badge-position')?.addEventListener('change', saveSettings);
       clearCodeBtn.addEventListener('click', clearCode);
 
       // OAuth and auth buttons
@@ -2734,6 +2871,10 @@ The user will describe what they want, and you'll generate the complete HTML for
         if (modelSelect.value === 'other') {
           localStorage.setItem(STORAGE_KEYS.customModel, customModelInput.value);
         }
+      }
+      const badgePosition = document.getElementById('badge-position');
+      if (badgePosition) {
+        localStorage.setItem(STORAGE_KEYS.badgePosition, badgePosition.value);
       }
     }
 
