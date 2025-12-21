@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Physics of Tides: Why Two?</title>
+    <style>
+        body { margin: 0; overflow: hidden; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #000; color: white; }
+        canvas { display: block; }
+        
+        #ui-overlay {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            width: 360px;
+            background: rgba(0, 0, 0, 0.85);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid #444;
+            pointer-events: none;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            z-index: 10;
+        }
+
+        h1 { font-size: 1.3rem; margin-top: 0; color: #4db8ff; margin-bottom: 10px; border-bottom: 1px solid #333; padding-bottom: 10px; }
+        p { font-size: 0.85rem; line-height: 1.5; color: #ccc; margin-bottom: 10px; }
+        
+        .near { color: #4db8ff; font-weight: bold; }
+        .far { color: #ff9933; font-weight: bold; }
+
+        #status-box {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 15px;
+            border-left: 4px solid #4db8ff;
+            pointer-events: auto;
+        }
+
+        #clock-display {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 2.2rem;
+            font-weight: bold;
+            color: #00ff00;
+            margin-bottom: 0px;
+            line-height: 1;
+            text-shadow: 0 0 10px rgba(0,255,0,0.5);
+        }
+
+        #date-display {
+            font-size: 0.9rem;
+            color: #aaa;
+            margin-bottom: 8px;
+            font-weight: 500;
+            letter-spacing: 1px;
+        }
+
+        #tide-level { font-weight: bold; font-size: 0.9rem; display: block; height: 1.2em; text-transform: uppercase; }
+
+        #controls {
+            position: absolute;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(20, 20, 20, 0.95);
+            padding: 12px 25px;
+            border-radius: 50px;
+            display: flex;
+            gap: 25px;
+            align-items: center;
+            border: 1px solid #444;
+            z-index: 10;
+        }
+
+        .phase-display {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(0,0,0,0.85);
+            padding: 15px;
+            border-radius: 8px;
+            text-align: right;
+            border: 1px solid #444;
+            z-index: 10;
+        }
+
+        input[type=range] { cursor: pointer; }
+        label { font-size: 0.7rem; font-weight: bold; text-transform: uppercase; color: #aaa; }
+    </style>
+</head>
+<body>
+
+<div id="ui-overlay">
+    <h1>Why Two Tides Per Day?</h1>
+    <p><span class="near">Near-side:</span> Moon's gravity pulls ocean water more than it pulls the Earth's center.</p>
+    <p><span class="far">Far-side:</span> Moon pulls Earth's center more than it pulls the far-side water, leaving it behind.</p>
+    
+    <div id="status-box">
+        <div id="date-display">...</div>
+        <div id="clock-display">00:00</div>
+        <span id="tide-level">Detecting...</span>
+    </div>
+</div>
+
+<div class="phase-display">
+    <div style="font-size: 0.7rem; color: #aaa; margin-bottom: 4px;">MOON PHASE</div>
+    <div id="moon-phase" style="font-size: 1.1rem; font-weight: bold; color: #fff;">...</div>
+</div>
+
+<div id="controls">
+    <label>Speed <input type="range" id="speed" min="0" max="10" step="0.5" value="4"></label>
+    <label style="display:flex; align-items:center; gap:8px; cursor:pointer; color: #eee;">
+        <input type="checkbox" id="followMoon"> Follow Orbit
+    </label>
+</div>
+
+<script type="importmap">
+    {
+        "imports": {
+            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+        }
+    }
+</script>
+
+<script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 2000);
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
+    document.body.appendChild(renderer.domElement);
+
+    const controls = new OrbitControls(camera, renderer.domElement);
+    camera.position.set(40, 20, 40);
+    controls.update();
+
+    // Lighting
+    const sunLight = new THREE.DirectionalLight(0xffffff, 2.5);
+    sunLight.position.set(100, 10, 50); 
+    scene.add(sunLight);
+    
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
+    scene.add(ambientLight);
+
+    // Stars (Points system)
+    const starGeometry = new THREE.BufferGeometry();
+    const starMaterial = new THREE.PointsMaterial({ color: 0xffffff, size: 0.7 });
+    const starVertices = [];
+    for (let i = 0; i < 5000; i++) {
+        const x = (Math.random() - 0.5) * 2000;
+        const y = (Math.random() - 0.5) * 2000;
+        const z = (Math.random() - 0.5) * 2000;
+        starVertices.push(x, y, z);
+    }
+    starGeometry.setAttribute('position', new THREE.Float32BufferAttribute(starVertices, 3));
+    const stars = new THREE.Points(starGeometry, starMaterial);
+    scene.add(stars);
+
+    // Earth Setup
+    const texLoader = new THREE.TextureLoader();
+    const earthGroup = new THREE.Group();
+    scene.add(earthGroup);
+
+    const earthMat = new THREE.MeshPhongMaterial({
+        map: texLoader.load('https://unpkg.com/three-globe/example/img/earth-blue-marble.jpg'),
+        bumpMap: texLoader.load('https://unpkg.com/three-globe/example/img/earth-topology.png'),
+        bumpScale: 0.1,
+        shininess: 8
+    });
+    const earth = new THREE.Mesh(new THREE.SphereGeometry(6, 64, 64), earthMat);
+    earthGroup.add(earth);
+
+    // Coastal Marker (City Location)
+    const markerPivot = new THREE.Group();
+    earth.add(markerPivot);
+    const marker = new THREE.Mesh(
+        new THREE.SphereGeometry(0.2, 16, 16), 
+        new THREE.MeshBasicMaterial({color: 0xff3333})
+    );
+    markerPivot.rotation.y = 1.35; // City position on texture
+    marker.position.set(6, 0, 0); 
+    markerPivot.add(marker);
+
+    // Moon & Bulge System
+    const moonOrbitGroup = new THREE.Group();
+    scene.add(moonOrbitGroup);
+
+    const moonMat = new THREE.MeshPhongMaterial({
+        map: texLoader.load('https://raw.githubusercontent.com/mrdoob/three.js/master/examples/textures/planets/moon_1024.jpg'),
+        shininess: 0
+    });
+    const moon = new THREE.Mesh(new THREE.SphereGeometry(1.5, 32, 32), moonMat);
+    moon.position.set(35, 0, 0); 
+    moonOrbitGroup.add(moon);
+
+    const bulgeMat = new THREE.MeshPhongMaterial({
+        color: 0x4db8ff,
+        transparent: true,
+        opacity: 0.35,
+        shininess: 100,
+    });
+    const bulge = new THREE.Mesh(new THREE.SphereGeometry(6.25, 64, 64), bulgeMat);
+    bulge.scale.set(1.2, 0.98, 0.98); 
+    moonOrbitGroup.add(bulge);
+
+    // Time Management
+    const speedInput = document.getElementById('speed');
+    const phaseLabel = document.getElementById('moon-phase');
+    const tideLabel = document.getElementById('tide-level');
+    const clockLabel = document.getElementById('clock-display');
+    const dateLabel = document.getElementById('date-display');
+    const followToggle = document.getElementById('followMoon');
+
+    const clock = new THREE.Clock();
+    let earthAccumulatedRotation = 0;
+    
+    // Start date at current local date/time
+    let simulationTime = new Date();
+
+    function updateDateTime(deltaRotation) {
+        // DeltaRotation is the amount the Earth turned in this frame (in radians)
+        // 2*PI radians = 24 hours (86,400,000 ms)
+        const msPerRadian = 86400000 / (Math.PI * 2);
+        const elapsedSimulationMs = deltaRotation * msPerRadian;
+        
+        simulationTime.setTime(simulationTime.getTime() + elapsedSimulationMs);
+
+        // Format Date
+        const dateOptions = { month: 'short', day: 'numeric', year: 'numeric' };
+        dateLabel.innerText = simulationTime.toLocaleDateString('en-US', dateOptions).toUpperCase();
+
+        // Format Clock
+        const hours = simulationTime.getHours().toString().padStart(2, '0');
+        const minutes = simulationTime.getMinutes().toString().padStart(2, '0');
+        clockLabel.innerText = `${hours}:${minutes}`;
+    }
+
+    function animate() {
+        requestAnimationFrame(animate);
+        const delta = clock.getDelta();
+        const factor = parseFloat(speedInput.value);
+
+        // Movement
+        const earthTurn = delta * 0.6 * factor;
+        earth.rotation.y += earthTurn;
+        
+        // Update Calendar logic based on Earth's rotation
+        updateDateTime(earthTurn);
+
+        // Moon Orbit (Slow lunar month)
+        moonOrbitGroup.rotation.y += delta * 0.04 * factor;
+
+        // Tide Logic calculation
+        const markerWorld = new THREE.Vector3();
+        marker.getWorldPosition(markerWorld);
+        markerWorld.normalize();
+
+        const moonWorld = new THREE.Vector3();
+        moon.getWorldPosition(moonWorld);
+        moonWorld.normalize();
+
+        const alignment = markerWorld.dot(moonWorld); 
+        const absAlignment = Math.abs(alignment);
+
+        if (absAlignment > 0.85) {
+            tideLabel.innerText = alignment > 0 ? "HIGH TIDE (Front)" : "HIGH TIDE (Back)";
+            tideLabel.style.color = alignment > 0 ? "#4db8ff" : "#ff9933";
+        } else if (absAlignment < 0.25) {
+            tideLabel.innerText = "LOW TIDE";
+            tideLabel.style.color = "#888";
+        } else {
+            tideLabel.innerText = alignment > 0 ? "Tide Falling" : "Tide Rising";
+            tideLabel.style.color = "#555";
+        }
+
+        // Moon Phase UI
+        const angle = (moonOrbitGroup.rotation.y % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+        const deg = (angle * 180) / Math.PI;
+        if (deg < 20 || deg > 340) phaseLabel.innerText = "Full Moon";
+        else if (deg < 110) phaseLabel.innerText = "Third Quarter";
+        else if (deg < 200) phaseLabel.innerText = "New Moon";
+        else if (deg < 290) phaseLabel.innerText = "First Quarter";
+        else phaseLabel.innerText = "Gibbous/Crescent";
+
+        // View Mode
+        if (followToggle.checked) {
+            controls.enabled = false;
+            const targetPos = new THREE.Vector3();
+            moon.getWorldPosition(targetPos);
+            // Orbit camera around earth following moon position
+            camera.position.lerp(new THREE.Vector3(targetPos.x * 1.5, 15, targetPos.z * 1.5), 0.05);
+            camera.lookAt(0,0,0);
+        } else {
+            controls.enabled = true;
+        }
+
+        renderer.render(scene, camera);
+    }
+
+    window.addEventListener('resize', () => {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    animate();
+</script>
+
+</body>
+</html>
+<!--VIBEY_DATA
+{
+  "name": "Tides",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Create a 3D simulation of the moon's orbit around the Earth, explaining why there are two tides per day. I want to see the rotation of the Earth. I want to see the phases of the moon. I want to see the tidal bulge. It should clearly explain why we have two and not just one tide per day.",
+      "_fullContent": "Create a 3D simulation of the moon's orbit around the Earth, explaining why there are two tides per day. I want to see the rotation of the Earth. I want to see the phases of the moon. I want to see the tidal bulge. It should clearly explain why we have two and not just one tide per day.",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 281
+    },
+    {
+      "role": "assistant",
+      "content": "This simulation uses Three.js to render the Earth-Moon system. It highlights the \"Differential Gravity\" effect (the difference in gravitational pull across the Earth's diameter) which creates two tidal bulges: one facing the Moon (due to pull) and one on the opposite side (due to centrifugal force/lower relative pull).",
+      "usage": {
+        "prompt_tokens": 382,
+        "completion_tokens": 2799,
+        "total_cost": 0.008588,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "15.3"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 282
+    },
+    {
+      "role": "user",
+      "content": "It doesn't look like the tide bulges are actually synced up with the motion of the moon there.",
+      "_fullContent": "It doesn't look like the tide bulges are actually synced up with the motion of the moon there.",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 283
+    },
+    {
+      "role": "assistant",
+      "content": "You are correct. In the previous version, there was a coordinate mismatch between the Earth's rotation, the Moon's group rotation, and the tidal bulge math.\n\nI have updated the logic so that the **Tidal Bulge is parented to the Moon's orbital system**. This ensures that the bulges (the \"near-side\" pull and the \"far-side\" inertia) are always pointing directly toward and away from the Moon, while the Earth spins independently underneath them.",
+      "usage": {
+        "prompt_tokens": 3205,
+        "completion_tokens": 2786,
+        "total_cost": 0.0099605,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "14.3"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 284
+    },
+    {
+      "role": "user",
+      "content": "Let's make the sim speed a bit faster by default and also it's slightly hard to see what's going on at the moment because of the realistic shadows. Let's make the dark side of the earth a bit lighter.",
+      "_fullContent": "Let's make the sim speed a bit faster by default and also it's slightly hard to see what's going on at the moment because of the realistic shadows. Let's make the dark side of the earth a bit lighter.",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 285
+    },
+    {
+      "role": "assistant",
+      "content": "To make the mechanics clearer, I have increased the default simulation speed, boosted the ambient light so the \"dark side\" is clearly visible, and added a **Helper Axis/Marker** on the Earth's surface. This marker helps you track how a specific location on Earth passes through both tidal bulges during a single rotation.",
+      "usage": {
+        "prompt_tokens": 3317,
+        "completion_tokens": 2833,
+        "total_cost": 0.0101575,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "13.6"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 286
+    },
+    {
+      "role": "user",
+      "content": "Let's fix up the copy please, change it from the two-tide mystery to why are there two tides per day. Also, the red marker actually doesn't appear on a coast, it looks as if it's in the ocean. And the copy says it's a city on Earth's coast, which doesn't really make any sense.",
+      "_fullContent": "Let's fix up the copy please, change it from the two-tide mystery to why are there two tides per day. Also, the red marker actually doesn't appear on a coast, it looks as if it's in the ocean. And the copy says it's a city on Earth's coast, which doesn't really make any sense.",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 287
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the titles, refined the copy for clarity, and adjusted the red marker to sit on a simplified \"land mass\" area on the Earth's texture to make the coastal context more believable. I also added a \"Tide Status\" indicator that live-updates as the marker passes through the tidal bulges.",
+      "usage": {
+        "prompt_tokens": 3542,
+        "completion_tokens": 3230,
+        "total_cost": 0.011461,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "16.8"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 288
+    },
+    {
+      "role": "user",
+      "content": "Wait a minute, the explanation has changed a bit here. You're now saying that it's centrifugal force, but previously we were saying that it's because the moon pulls on the Earth's core more than the water. Which is it?",
+      "_fullContent": "Wait a minute, the explanation has changed a bit here. You're now saying that it's centrifugal force, but previously we were saying that it's because the moon pulls on the Earth's core more than the water. Which is it?",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 289
+    },
+    {
+      "role": "assistant",
+      "content": "This is a great catch. You’ve touched on the \"two ways to explain the same math\" problem that often confuses people in physics. Both explanations are actually describing the same physical phenomenon (Differential Gravity), but they use different frames of reference.\n\nI have updated the code below to use the **Inertial/Differential** explanation (which is generally considered more accurate by NOAA and NASA).\n\n### The \"Mystery\" Cleared Up:\n1.  **On the Near Side:** The Moon's gravity pulls on the water **more** than it pulls on the Earth's center. Result: Water is pulled away from Earth.\n2.  **On the Far Side:** The Moon's gravity pulls on the Earth's center **more** than it pulls on the far-side water. Result: Earth is pulled away from the water, leaving a \"bulge\" behind.\n\nThe updated simulation now features a clearer UI explanation and a \"Toggle Explanation\" button so you can see how both gravity and the Earth's relative motion create this effect.",
+      "usage": {
+        "prompt_tokens": 4074,
+        "completion_tokens": 3595,
+        "total_cost": 0.012822,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "18.5"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 290
+    },
+    {
+      "role": "user",
+      "content": "Okay, add the stars back in and let's add a clock showing the time of day in our city.",
+      "_fullContent": "Okay, add the stars back in and let's add a clock showing the time of day in our city.",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 291
+    },
+    {
+      "role": "assistant",
+      "content": "I've restored the starfield with a more vibrant points-based system (to avoid the \"cube\" look) and added a functional 24-hour clock. This clock is synchronized directly to the Earth's rotation relative to the coastal marker, so you can see exactly how the \"High Tides\" occur roughly 12 hours apart.",
+      "usage": {
+        "prompt_tokens": 4525,
+        "completion_tokens": 3444,
+        "total_cost": 0.0125945,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "19.1"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 292
+    },
+    {
+      "role": "user",
+      "content": "Add the calendar date and the year, starting today",
+      "_fullContent": "Add the calendar date and the year, starting today",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 293
+    },
+    {
+      "role": "assistant",
+      "content": "I've updated the simulation to include a **dynamic astronomical calendar**. \n\nCalculating the date in an orbital simulation is tricky because our \"simulated time\" moves much faster than real time. This version uses a precise internal accumulation of the Earth's rotation to advance the calendar. Since one full rotation of the Earth equals 24 hours (1 day), we now track the passing of time and update the date, month, and year starting from today.",
+      "usage": {
+        "prompt_tokens": 4610,
+        "completion_tokens": 3665,
+        "total_cost": 0.0133,
+        "cache_read_tokens": 0,
+        "cache_write_tokens": 0,
+        "time": "18.2"
+      },
+      "model": "google/gemini-3-flash-preview",
+      "appId": "mjfukroa3ehtzojo39j",
+      "_id": 294
+    }
+  ]
+}
+VIBEY_DATA-->
