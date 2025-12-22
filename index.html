@@ -130,6 +130,40 @@
       max-width: 70%;
     }
 
+    /* Panel resize handle */
+    .panel-resize-handle {
+      position: absolute;
+      left: -4px;
+      top: 0;
+      width: 8px;
+      height: 100%;
+      cursor: ew-resize;
+      z-index: 10;
+    }
+
+    .panel-resize-handle::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 2px;
+      height: 40px;
+      background: var(--vibe-border);
+      border-radius: 1px;
+      opacity: 0;
+      transition: opacity 0.15s;
+    }
+
+    .panel-resize-handle:hover::after,
+    #vibey-panel.resizing .panel-resize-handle::after {
+      opacity: 1;
+    }
+
+    #vibey-panel.fullscreen .panel-resize-handle {
+      display: none;
+    }
+
     /* App bar */
     .app-bar {
       position: relative;
@@ -598,11 +632,11 @@
       border: 1px solid var(--vibe-border);
       border-radius: 10px;
       font-size: 13px;
-      resize: none;
+      resize: vertical;
       font-family: 'Space Mono', monospace;
       min-height: 44px;
-      max-height: 120px;
-      transition: all 0.15s;
+      max-height: 300px;
+      transition: border-color 0.15s, box-shadow 0.15s;
       background: var(--vibe-white);
       color: var(--vibe-text);
     }
@@ -1314,6 +1348,7 @@
 
   <!-- Overlay panel -->
   <div id="vibey-panel">
+    <div class="panel-resize-handle" id="panel-resize-handle"></div>
     <!-- App bar -->
     <div class="app-bar">
       <input type="text" id="app-name-input" class="app-name-input" placeholder="App name..." value="My App">
@@ -2710,6 +2745,9 @@ The user will describe what they want, and you'll generate the complete HTML for
       // Initialize models
       initModels();
 
+      // Initialize panel resize
+      initPanelResize();
+
       // Update auth UI (this replaces the old checkApiKeySetup call)
       const hasApiKey = updateAuthUI();
       if (!hasApiKey) {
@@ -2844,6 +2882,47 @@ The user will describe what they want, and you'll generate the complete HTML for
         chatInput.style.minHeight = '100px';
       } else {
         chatInput.style.minHeight = '';
+      }
+    }
+
+    // Panel resize functionality
+    function initPanelResize() {
+      const handle = document.getElementById('panel-resize-handle');
+      let isResizing = false;
+      let startX, startWidth;
+
+      handle.addEventListener('mousedown', (e) => {
+        if (panel.classList.contains('fullscreen')) return;
+        isResizing = true;
+        startX = e.clientX;
+        startWidth = panel.offsetWidth;
+        panel.classList.add('resizing');
+        document.body.style.cursor = 'ew-resize';
+        document.body.style.userSelect = 'none';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isResizing) return;
+        const diff = startX - e.clientX;
+        const newWidth = Math.min(Math.max(startWidth + diff, 320), window.innerWidth - 40);
+        panel.style.width = newWidth + 'px';
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (!isResizing) return;
+        isResizing = false;
+        panel.classList.remove('resizing');
+        document.body.style.cursor = '';
+        document.body.style.userSelect = '';
+        // Save width to localStorage
+        localStorage.setItem('vibey_panel_width', panel.style.width);
+      });
+
+      // Restore saved width
+      const savedWidth = localStorage.getItem('vibey_panel_width');
+      if (savedWidth) {
+        panel.style.width = savedWidth;
       }
     }
 
