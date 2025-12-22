@@ -2905,8 +2905,10 @@ The user will describe what they want, and you'll generate the complete HTML for
       document.addEventListener('mousemove', (e) => {
         if (!isResizing) return;
         const diff = startX - e.clientX;
-        const newWidth = Math.min(Math.max(startWidth + diff, 320), window.innerWidth - 40);
+        const maxWidth = window.innerWidth - 40;
+        const newWidth = Math.min(Math.max(startWidth + diff, 320), maxWidth);
         panel.style.width = newWidth + 'px';
+        panel.style.maxWidth = newWidth + 'px';
       });
 
       document.addEventListener('mouseup', () => {
@@ -2923,6 +2925,7 @@ The user will describe what they want, and you'll generate the complete HTML for
       const savedWidth = localStorage.getItem('vibey_panel_width');
       if (savedWidth) {
         panel.style.width = savedWidth;
+        panel.style.maxWidth = savedWidth;
       }
     }
 
